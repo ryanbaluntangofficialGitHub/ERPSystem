@@ -1,0 +1,1 @@
+export default function HR(){ return (<div><h2 className='text-2xl font-semibold mb-4'>HR</h2><p>Placeholder for HR module</p></div>); }
