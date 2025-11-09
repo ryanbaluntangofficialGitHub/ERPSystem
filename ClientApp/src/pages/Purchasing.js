@@ -1,1 +1,0 @@
-export default function Purchasing(){ return (<div><h2 className='text-2xl font-semibold mb-4'>Purchasing</h2><p>Placeholder for purchasing module</p></div>); }
