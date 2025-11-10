@@ -6,16 +6,34 @@ namespace ERPSystem.Models
     {
         public int Id { get; set; }
 
-        [Required(ErrorMessage = "Product name is required")]
-        [StringLength(200, ErrorMessage = "Product name cannot exceed 200 characters")]
+        [Required]
+        public int CompanyId { get; set; }
+
+        [Required]
+        [StringLength(50)]
+        public string ProductCode { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(200)]
         public string Name { get; set; } = string.Empty;
 
-        [Required]
-        [Range(0, int.MaxValue, ErrorMessage = "Quantity must be 0 or greater")]
+        public string ProductName => Name; // Alias for compatibility
+
+        [StringLength(500)]
+        public string? Description { get; set; }
+
+        [StringLength(50)]
+        public string UnitOfMeasure { get; set; } = "pcs";
+
+        public decimal Price { get; set; }
+
         public int Quantity { get; set; }
 
-        [Required]
-        [Range(0.01, double.MaxValue, ErrorMessage = "Price must be greater than 0")]
-        public decimal Price { get; set; }
+        public bool IsActive { get; set; } = true;
+
+        public DateTime CreatedDate { get; set; }
+        public int CreatedBy { get; set; }
+        public DateTime? ModifiedDate { get; set; }
+        public int? ModifiedBy { get; set; }
     }
 }

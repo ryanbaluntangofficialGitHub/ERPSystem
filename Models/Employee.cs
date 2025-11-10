@@ -6,28 +6,45 @@ namespace ERPSystem.Models
     {
         public int Id { get; set; }
 
-        [Required(ErrorMessage = "Employee name is required")]
-        [StringLength(100, ErrorMessage = "Name cannot exceed 100 characters")]
+        [Required]
+        public int CompanyId { get; set; }
+
+        [Required]
+        [StringLength(50)]
+        public string EmployeeCode { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(100)]
         public string Name { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "Position is required")]
-        [StringLength(100, ErrorMessage = "Position cannot exceed 100 characters")]
+        [Required]
+        [StringLength(100)]
         public string Position { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "Department is required")]
-        [StringLength(100, ErrorMessage = "Department cannot exceed 100 characters")]
+        [Required]
+        [StringLength(100)]
         public string Department { get; set; } = string.Empty;
 
-        [EmailAddress(ErrorMessage = "Invalid email address")]
+        public int? DepartmentId { get; set; } // Add this back
+
+        [EmailAddress]
         [StringLength(100)]
         public string? Email { get; set; }
 
-        [Phone(ErrorMessage = "Invalid phone number")]
+        [Phone]
         [StringLength(20)]
         public string? Phone { get; set; }
 
         public DateTime HireDate { get; set; }
 
         public bool IsActive { get; set; } = true;
+
+        public DateTime CreatedDate { get; set; }
+        public int CreatedBy { get; set; }
+        public DateTime? ModifiedDate { get; set; }
+        public int? ModifiedBy { get; set; }
+
+        // Navigation property
+        public virtual Department? DepartmentNav { get; set; }
     }
 }

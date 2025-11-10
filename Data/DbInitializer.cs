@@ -136,21 +136,28 @@ namespace ERPSystem.Data
 
             if (!context.PurchaseOrders.Any())
             {
-                context.PurchaseOrders.AddRange(
-                    new PurchaseOrder
-                    {
-                        Supplier = "Tech Supplies Inc.",
-                        Date = DateTime.UtcNow.AddDays(-3),
-                        Total = 8000.00m
-                    },
-                    new PurchaseOrder
-                    {
-                        Supplier = "Office Depot",
-                        Date = DateTime.UtcNow.AddDays(-1),
-                        Total = 3500.00m
-                    }
-                );
-                context.SaveChanges();
+                var supplier = context.Suppliers.FirstOrDefault();
+                if (supplier != null)
+                {
+                    context.PurchaseOrders.AddRange(
+                        new PurchaseOrder
+                        {
+                            CompanyId = 1,
+                            PONumber = "PO20250101",
+                            SupplierId = supplier.Id,
+                            OrderDate = DateTime.UtcNow.AddDays(-3),
+                            Status = "Confirmed",
+                            SubTotal = 8000.00m,
+                            TaxAmount = 0,
+                            DiscountAmount = 0,
+                            ShippingAmount = 0,
+                            TotalAmount = 8000.00m,
+                            CreatedDate = DateTime.UtcNow,
+                            CreatedBy = 1
+                        }
+                    );
+                    context.SaveChanges();
+                }
             }
 
             if (!context.Employees.Any())
@@ -247,6 +254,170 @@ namespace ERPSystem.Data
                         Date = DateTime.UtcNow.AddDays(-4)
                     }
                 );
+                context.SaveChanges();
+            }
+
+            if (!context.Departments.Any())
+            {
+                context.Departments.AddRange(
+                    new Department
+                    {
+                        DepartmentName = "IT Department",
+                        Description = "Information Technology",
+                        CompanyId = 1,
+                        IsActive = true,
+                        CreatedDate = DateTime.UtcNow
+                    },
+                    new Department
+                    {
+                        DepartmentName = "Sales Department",
+                        Description = "Sales and Marketing",
+                        CompanyId = 1,
+                        IsActive = true,
+                        CreatedDate = DateTime.UtcNow
+                    },
+                    new Department
+                    {
+                        DepartmentName = "Operations",
+                        Description = "Operations and Production",
+                        CompanyId = 1,
+                        IsActive = true,
+                        CreatedDate = DateTime.UtcNow
+                    }
+                );
+                context.SaveChanges();
+            }
+
+            if (!context.Suppliers.Any())
+            {
+                context.Suppliers.AddRange(
+                    new Supplier
+                    {
+                        SupplierCode = "SUP001",
+                        SupplierName = "Tech Supplies Inc.",
+                        ContactPerson = "John Supplier",
+                        Email = "john@techsupplies.com",
+                        Phone = "+1234567890",
+                        Address = "123 Supply Street",
+                        City = "Tech City",
+                        State = "CA",
+                        Country = "USA",
+                        PostalCode = "12345",
+                        PaymentTerms = 30,
+                        SupplierType = "Material",
+                        IsActive = true,
+                        CompanyId = 1,
+                        CreatedDate = DateTime.UtcNow,
+                        CreatedBy = 1
+                    },
+                    new Supplier
+                    {
+                        SupplierCode = "SUP002",
+                        SupplierName = "Office Solutions Ltd",
+                        ContactPerson = "Sarah Office",
+                        Email = "sarah@officesolutions.com",
+                        Phone = "+1234567891",
+                        Address = "456 Office Ave",
+                        City = "Business City",
+                        State = "NY",
+                        Country = "USA",
+                        PostalCode = "54321",
+                        PaymentTerms = 45,
+                        SupplierType = "Both",
+                        IsActive = true,
+                        CompanyId = 1,
+                        CreatedDate = DateTime.UtcNow,
+                        CreatedBy = 1
+                    },
+                    new Supplier
+                    {
+                        SupplierCode = "SUP003",
+                        SupplierName = "Industrial Materials Co.",
+                        ContactPerson = "Mike Materials",
+                        Email = "mike@industrial.com",
+                        Phone = "+1234567892",
+                        Address = "789 Industrial Blvd",
+                        City = "Factory Town",
+                        State = "TX",
+                        Country = "USA",
+                        PostalCode = "67890",
+                        PaymentTerms = 60,
+                        SupplierType = "Material",
+                        IsActive = true,
+                        CompanyId = 1,
+                        CreatedDate = DateTime.UtcNow,
+                        CreatedBy = 1
+                    }
+                );
+                context.SaveChanges();
+            }
+
+            // Seed Warehouses
+            if (!context.Warehouses.Any())
+            {
+                context.Warehouses.AddRange(
+                    new Warehouse
+                    {
+                        WarehouseCode = "WH001",
+                        WarehouseName = "Main Warehouse",
+                        Address = "100 Warehouse Drive",
+                        City = "Storage City",
+                        State = "CA",
+                        Country = "USA",
+                        PostalCode = "11111",
+                        IsActive = true,
+                        CompanyId = 1,
+                        CreatedDate = DateTime.UtcNow
+                    },
+                    new Warehouse
+                    {
+                        WarehouseCode = "WH002",
+                        WarehouseName = "Secondary Storage",
+                        Address = "200 Storage Lane",
+                        City = "Depot Town",
+                        State = "NY",
+                        Country = "USA",
+                        PostalCode = "22222",
+                        IsActive = true,
+                        CompanyId = 1,
+                        CreatedDate = DateTime.UtcNow
+                    }
+                );
+                context.SaveChanges();
+            }
+
+            // Seed Sample Purchase Requests
+            if (!context.PurchaseRequests.Any())
+            {
+                var dept = context.Departments.First();
+                var pr = new PurchaseRequest
+                {
+                    RequestNumber = "PR20250101",
+                    RequestDate = DateTime.UtcNow.AddDays(-5),
+                    DepartmentId = dept.Id,
+                    RequestedBy = 1,
+                    Priority = "High",
+                    RequiredDate = DateTime.UtcNow.AddDays(15),
+                    Status = "Approved",
+                    ApprovedBy = 1,
+                    ApprovalDate = DateTime.UtcNow.AddDays(-3),
+                    Notes = "Urgent supplies needed for Q1",
+                    CompanyId = 1,
+                    CreatedDate = DateTime.UtcNow.AddDays(-5),
+                    CreatedBy = 1
+                };
+
+                var product1 = context.Products.First();
+                pr.Items.Add(new PurchaseRequestItem
+                {
+                    ProductId = product1.Id,
+                    Description = product1.Name,
+                    Quantity = 50,
+                    EstimatedPrice = 50.00m,
+                    Purpose = "Production materials"
+                });
+
+                context.PurchaseRequests.Add(pr);
                 context.SaveChanges();
             }
         }
