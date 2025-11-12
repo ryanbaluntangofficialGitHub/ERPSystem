@@ -4,6 +4,8 @@ using Microsoft.EntityFrameworkCore;
 using ERPSystem.Data;
 using ERPSystem.Models;
 using System.Security.Claims;
+using ERPSystem.DTOs;
+using ERPSystem.Services;
 
 namespace ERPSystem.Controllers
 {
@@ -14,11 +16,13 @@ namespace ERPSystem.Controllers
     {
         private readonly AppDbContext _db;
         private readonly ILogger<PurchaseRequestController> _logger;
+        private readonly PurchasingService _purchasingService;
 
-        public PurchaseRequestController(AppDbContext db, ILogger<PurchaseRequestController> logger)
+        public PurchaseRequestController(AppDbContext db, ILogger<PurchaseRequestController> logger, PurchasingService purchasingService)
         {
             _db = db;
             _logger = logger;
+            _purchasingService = purchasingService;
         }
 
         // GET: api/PurchaseRequest
@@ -77,7 +81,7 @@ namespace ERPSystem.Controllers
 
         // POST: api/PurchaseRequest
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] PurchaseRequest request)
+        public async Task<IActionResult> Create([FromBody] PurchaseRequestCreateDto model)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
@@ -86,14 +90,32 @@ namespace ERPSystem.Controllers
             {
                 var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
 
-                // Generate PR Number
-                request.RequestNumber = await GeneratePRNumber();
-                request.RequestDate = DateTime.UtcNow;
-                request.Status = "Draft";
-                request.CreatedDate = DateTime.UtcNow;
-                request.CreatedBy = userId;
-                request.RequestedBy = userId;
-                request.CompanyId = 1; // TODO: Get from user context
+                var request = new PurchaseRequest
+                {
+                    CompanyId = model.CompanyId,
+                    RequestNumber = await GeneratePRNumber(),
+                    RequestDate = DateTime.UtcNow,
+                    DepartmentId = model.DepartmentId,
+                    Priority = model.Priority,
+                    RequiredDate = model.RequiredDate,
+                    Status = "Draft",
+                    RequestedBy = userId,
+                    CreatedDate = DateTime.UtcNow,
+                    CreatedBy = userId
+                };
+
+                foreach (var item in model.Items)
+                {
+                    request.Items.Add(new PurchaseRequestItem
+                    {
+                        ProductId = item.ProductId,
+                        Description = item.Description,
+                        Quantity = item.Quantity,
+                        EstimatedPrice = item.EstimatedPrice,
+                        UnitOfMeasure = item.UnitOfMeasure,
+                        Purpose = item.Purpose
+                    });
+                }
 
                 _db.PurchaseRequests.Add(request);
                 await _db.SaveChangesAsync();
@@ -112,13 +134,13 @@ namespace ERPSystem.Controllers
 
         // PUT: api/PurchaseRequest/5
         [HttpPut("{id}")]
-        public async Task<IActionResult> Update(int id, [FromBody] PurchaseRequest request)
+        public async Task<IActionResult> Update(int id, [FromBody] PurchaseRequestCreateDto model)
         {
-            if (id != request.Id)
-                return BadRequest(new { message = "ID mismatch" });
-
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
+
+            if (id != model.Id)
+                return BadRequest(new { message = "ID mismatch" });
 
             try
             {
@@ -138,16 +160,28 @@ namespace ERPSystem.Controllers
                 var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
 
                 // Update main fields
-                existingRequest.DepartmentId = request.DepartmentId;
-                existingRequest.Priority = request.Priority;
-                existingRequest.RequiredDate = request.RequiredDate;
-                existingRequest.Notes = request.Notes;
+                existingRequest.DepartmentId = model.DepartmentId;
+                existingRequest.Priority = model.Priority;
+                existingRequest.RequiredDate = model.RequiredDate;
+                existingRequest.Notes = model.Notes;
                 existingRequest.ModifiedDate = DateTime.UtcNow;
                 existingRequest.ModifiedBy = userId;
 
                 // Update items
                 _db.PurchaseRequestItems.RemoveRange(existingRequest.Items);
-                existingRequest.Items = request.Items;
+                existingRequest.Items = new List<PurchaseRequestItem>();
+                foreach (var item in model.Items)
+                {
+                    existingRequest.Items.Add(new PurchaseRequestItem
+                    {
+                        ProductId = item.ProductId,
+                        Description = item.Description,
+                        Quantity = item.Quantity,
+                        EstimatedPrice = item.EstimatedPrice,
+                        UnitOfMeasure = item.UnitOfMeasure,
+                        Purpose = item.Purpose
+                    });
+                }
 
                 await _db.SaveChangesAsync();
 
@@ -302,6 +336,70 @@ namespace ERPSystem.Controllers
             }
         }
 
+        // POST: api/PurchaseRequest/5/convert-to-po
+        [HttpPost("{id}/convert-to-po")]
+        [Authorize(Policy = "Purchase")]
+        public async Task<IActionResult> ConvertToPO(int id, [FromBody] ConvertPRToPODto model)
+        {
+            try
+            {
+                var pr = await _db.PurchaseRequests
+                    .Include(p => p.Items)
+                    .FirstOrDefaultAsync(p => p.Id == id);
+
+                if (pr == null) return NotFound(new { message = "Purchase request not found" });
+                if (pr.Status != "Approved") return BadRequest(new { message = "Purchase request must be approved before converting" });
+
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+
+                // Create PO
+                var po = new PurchaseOrder
+                {
+                    CompanyId = pr.CompanyId,
+                    PONumber = await _purchasingService.GeneratePONumberAsync(),
+                    PurchaseRequestId = pr.Id,
+                    SupplierId = model.SupplierId,
+                    OrderDate = DateTime.UtcNow,
+                    RequiredDate = pr.RequiredDate,
+                    Status = "Draft",
+                    CreatedDate = DateTime.UtcNow,
+                    CreatedBy = userId
+                };
+
+                decimal subTotal = 0m;
+                foreach (var item in model.Items)
+                {
+                    var lineTotal = item.Quantity * item.UnitPrice;
+                    po.Items.Add(new PurchaseOrderItem
+                    {
+                        ProductId = item.ProductId ?? 0,
+                        Quantity = item.Quantity,
+                        UnitPrice = item.UnitPrice,
+                        LineTotal = lineTotal
+                    });
+                    subTotal += lineTotal;
+                }
+
+                po.SubTotal = subTotal;
+                po.TotalAmount = subTotal + po.TaxAmount - po.DiscountAmount + po.ShippingAmount;
+
+                _db.PurchaseOrders.Add(po);
+
+                pr.Status = "Converted";
+                pr.ModifiedDate = DateTime.UtcNow;
+                pr.ModifiedBy = userId;
+
+                await _db.SaveChangesAsync();
+
+                return Ok(new { message = "Purchase request converted to PO", poId = po.Id, poNumber = po.PONumber });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error converting purchase request {Id} to PO", id);
+                return StatusCode(500, new { message = "Internal server error" });
+            }
+        }
+
         // Helper method to generate PR number
         private async Task<string> GeneratePRNumber()
         {
@@ -332,5 +430,18 @@ namespace ERPSystem.Controllers
     {
         public string? Reason { get; set; }
         public string? Notes { get; set; }
+    }
+
+    public class ConvertPRToPODto
+    {
+        public int SupplierId { get; set; }
+        public List<ConvertPRToPOItemDto> Items { get; set; } = new();
+    }
+
+    public class ConvertPRToPOItemDto
+    {
+        public int? ProductId { get; set; }
+        public int Quantity { get; set; }
+        public decimal UnitPrice { get; set; }
     }
 }

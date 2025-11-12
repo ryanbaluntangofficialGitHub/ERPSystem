@@ -1,56 +1,79 @@
-import axios from 'axios';
+const baseURL = 'https://localhost:7273/api';
+const timeoutMs = 30000;
 
-const api = axios.create({
-    baseURL: 'https://localhost:7273/api',
-    timeout: 30000,
-    headers: {
+function buildHeaders(customHeaders = {}) {
+    const headers = {
         'Content-Type': 'application/json',
-    }
-});
+        ...customHeaders
+    };
 
-// Request interceptor - add token to every request
-api.interceptors.request.use(
-    (config) => {
+    try {
         const token = localStorage.getItem('erp_token');
-
         if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-            console.log('Request to:', config.url, 'with token');
+            headers['Authorization'] = `Bearer ${token}`;
+            // console.log('Request with token');
+        }
+    } catch (e) {
+        // localStorage not available in some test environments
+    }
+
+    return headers;
+}
+
+async function request(method, url, options = {}) {
+    const controller = new AbortController();
+    const signal = controller.signal;
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    const init = {
+        method,
+        headers: buildHeaders(options.headers),
+        signal
+    };
+
+    if (options.data) {
+        init.body = JSON.stringify(options.data);
+    }
+
+    try {
+        const res = await fetch(baseURL + url, init);
+        clearTimeout(timer);
+
+        const contentType = res.headers.get('content-type') || '';
+        let data = null;
+        if (contentType.includes('application/json')) {
+            data = await res.json();
         } else {
-            console.warn('No token found for request to:', config.url);
+            data = await res.text();
         }
 
-        return config;
-    },
-    (error) => {
-        console.error('Request error:', error);
-        return Promise.reject(error);
-    }
-);
-
-// Response interceptor
-api.interceptors.response.use(
-    (response) => {
-        console.log('Response from:', response.config.url, 'Status:', response.status);
-        return response;
-    },
-    (error) => {
-        console.error('Response error from:', error.config?.url, {
-            status: error.response?.status,
-            data: error.response?.data
-        });
-
-        // Redirect to login on 401
-        if (error.response?.status === 401 && !window.location.pathname.includes('/login')) {
-            console.log('401 Unauthorized - redirecting to login');
-            localStorage.removeItem('erp_token');
-            setTimeout(() => {
-                window.location.href = '/login';
-            }, 100);
+        if (!res.ok) {
+            const error = new Error('Request failed');
+            error.response = { status: res.status, data };
+            throw error;
         }
 
-        return Promise.reject(error);
+        return { data, status: res.status, headers: res.headers };
+    } catch (err) {
+        clearTimeout(timer);
+        // Normalize fetch abort
+        if (err.name === 'AbortError') {
+            const error = new Error('Timeout');
+            error.response = { status: 408 };
+            throw error;
+        }
+        throw err;
     }
-);
+}
 
-export default api;
+export default {
+    get: (url, config) => request('GET', url + (config && config.params ? '?' + new URLSearchParams(config.params).toString() : ''), {}),
+    post: (url, data) => request('POST', url, { data }),
+    put: (url, data) => request('PUT', url, { data }),
+    delete: (url) => request('DELETE', url),
+    // simple interceptor placeholders to keep compatibility
+    interceptors: {
+        request: { use: () => {} },
+        response: { use: () => {} }
+    }
+};

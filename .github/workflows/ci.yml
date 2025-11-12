@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x]
+        dotnet-version: [8.0.x]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: ${{ matrix.dotnet-version }}
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-packages-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            nuget-packages-${{ runner.os }}-
+
+      - name: Restore .NET packages
+        run: dotnet restore ERPSystem.sln --verbosity minimal
+
+      - name: Build .NET solution
+        run: dotnet build ERPSystem.sln --configuration Release --no-restore --verbosity minimal
+
+      - name: Run .NET tests (collect coverage)
+        run: |
+          dotnet test tests/ERPSystem.Tests/ERPSystem.Tests.csproj --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./TestResults
+
+      - name: Upload .NET coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dotnet-test-results
+          path: TestResults
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install frontend dependencies
+        working-directory: ClientApp
+        run: npm ci
+
+      - name: Run frontend tests with coverage
+        working-directory: ClientApp
+        env:
+          CI: true
+        run: npm test --silent -- --coverage --watchAll=false
+
+      - name: Upload frontend coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-coverage
+          path: ClientApp/coverage
+
+      - name: Build frontend
+        working-directory: ClientApp
+        run: npm run build --if-present
+
+      - name: Upload frontend build as artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-build
+          path: ClientApp/build
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master' && secrets.AZURE_WEBAPP_PUBLISH_PROFILE
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download client build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: client-build
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v4
+        with:
+          app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: ./ClientApp/build

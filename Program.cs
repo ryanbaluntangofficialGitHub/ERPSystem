@@ -1,4 +1,5 @@
 ﻿using ERPSystem.Data;
+using ERPSystem.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -10,9 +11,14 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+// Register application services
+builder.Services.AddScoped<PurchasingService>();
+builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
+
 // --- JWT Authentication ---
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var key = Encoding.ASCII.GetBytes(jwtSettings["Key"]);
+var keyString = jwtSettings["Key"] ?? string.Empty;
+var key = Encoding.ASCII.GetBytes(keyString);
 
 builder.Services.AddAuthentication(options =>
 {
@@ -41,9 +47,10 @@ builder.Services.AddAuthentication(options =>
         {
             var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
             logger.LogError("Authentication failed: {Exception}", context.Exception);
-            if (context.Exception.GetType() == typeof(SecurityTokenExpiredException))
+            if (context.Exception is SecurityTokenExpiredException)
             {
-                context.Response.Headers.Add("Token-Expired", "true");
+                // Use Append to avoid ArgumentException when header already exists
+                context.Response.Headers.Append("Token-Expired", "true");
             }
             return Task.CompletedTask;
         }

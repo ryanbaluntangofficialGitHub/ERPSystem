@@ -1,0 +1,7 @@
+<Project>
+  <PropertyGroup>
+    <!-- Disable SourceLink and static web assets for all projects to avoid recursive copy issues in CI/test environment -->
+    <GenerateSourceLink>false</GenerateSourceLink>
+    <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
+  </PropertyGroup>
+</Project>

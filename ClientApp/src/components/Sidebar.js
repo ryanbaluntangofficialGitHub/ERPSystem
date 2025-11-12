@@ -38,6 +38,18 @@ const ALL_LINKS = [
         icon: '🏭',
         roles: ['Admin', 'Production']
     },
+    {
+        to: '/products',
+        label: 'Products',
+        icon: '🧩',
+        roles: ['Admin', 'Production']
+    },
+    {
+        to: '/warehouses',
+        label: 'Warehouses',
+        icon: '📦',
+        roles: ['Admin']
+    },
 ];
 
 export default function Sidebar({ onLogout, userRole }) {

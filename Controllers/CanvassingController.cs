@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using ERPSystem.Data;
 using ERPSystem.Models;
 using System.Security.Claims;
+using ERPSystem.Services;
 
 namespace ERPSystem.Controllers
 {
@@ -14,11 +15,13 @@ namespace ERPSystem.Controllers
     {
         private readonly AppDbContext _db;
         private readonly ILogger<CanvassingController> _logger;
+        private readonly PurchasingService _purchasingService;
 
-        public CanvassingController(AppDbContext db, ILogger<CanvassingController> logger)
+        public CanvassingController(AppDbContext db, ILogger<CanvassingController> logger, PurchasingService purchasingService)
         {
             _db = db;
             _logger = logger;
+            _purchasingService = purchasingService;
         }
 
         // GET: api/Canvassing
@@ -153,70 +156,16 @@ namespace ERPSystem.Controllers
         {
             try
             {
-                var canvassing = await _db.Canvassings
-                    .Include(c => c.Items.Where(i => i.IsSelected))
-                        .ThenInclude(i => i.Product)
-                    .Include(c => c.PurchaseRequest)
-                    .FirstOrDefaultAsync(c => c.Id == id);
-
-                if (canvassing == null)
-                    return NotFound(new { message = "Canvassing not found" });
-
-                if (canvassing.Status != "Completed")
-                    return BadRequest(new { message = "Canvassing must be completed first" });
-
-                if (canvassing.SelectedSupplierId == null)
-                    return BadRequest(new { message = "No supplier selected" });
-
                 var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
 
-                // Create Purchase Order
-                var po = new PurchaseOrder
-                {
-                    CompanyId = canvassing.CompanyId,
-                    PONumber = await GeneratePONumber(),
-                    PurchaseRequestId = canvassing.PurchaseRequestId,
-                    CanvassingId = canvassing.Id,
-                    SupplierId = canvassing.SelectedSupplierId.Value,
-                    OrderDate = DateTime.UtcNow,
-                    RequiredDate = canvassing.PurchaseRequest?.RequiredDate,
-                    Status = "Draft",
-                    CreatedDate = DateTime.UtcNow,
-                    CreatedBy = userId
-                };
-
-                // Add PO items from selected canvassing items
-                decimal subTotal = 0;
-                foreach (var canvItem in canvassing.Items.Where(i => i.IsSelected))
-                {
-                    var poItem = new PurchaseOrderItem
-                    {
-                        ProductId = canvItem.ProductId!.Value,
-                        Quantity = canvItem.Quantity,
-                        UnitPrice = canvItem.UnitPrice,
-                        LineTotal = canvItem.TotalPrice
-                    };
-                    po.Items.Add(poItem);
-                    subTotal += canvItem.TotalPrice;
-                }
-
-                po.SubTotal = subTotal;
-                po.TotalAmount = subTotal; // TODO: Add tax calculation
-
-                _db.PurchaseOrders.Add(po);
-
-                // Update PR status
-                if (canvassing.PurchaseRequest != null)
-                {
-                    canvassing.PurchaseRequest.Status = "Converted";
-                }
-
-                await _db.SaveChangesAsync();
-
-                _logger.LogInformation("Canvassing {Id} converted to PO {PONumber}",
-                    id, po.PONumber);
+                var po = await _purchasingService.ConvertCanvassingToPOAsync(id, userId);
 
                 return Ok(new { message = "Purchase order created", poId = po.Id, poNumber = po.PONumber });
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning(ex, "Business rule violation converting canvassing {Id}", id);
+                return BadRequest(new { message = ex.Message });
             }
             catch (Exception ex)
             {

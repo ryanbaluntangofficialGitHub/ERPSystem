@@ -4,6 +4,8 @@ using Microsoft.EntityFrameworkCore;
 using ERPSystem.Data;
 using ERPSystem.Models;
 using System.Security.Claims;
+using ERPSystem.DTOs;
+using ERPSystem.Services;
 
 namespace ERPSystem.Controllers
 {
@@ -14,11 +16,13 @@ namespace ERPSystem.Controllers
     {
         private readonly AppDbContext _db;
         private readonly ILogger<PurchaseOrderController> _logger;
+        private readonly PurchasingService _purchasingService;
 
-        public PurchaseOrderController(AppDbContext db, ILogger<PurchaseOrderController> logger)
+        public PurchaseOrderController(AppDbContext db, ILogger<PurchaseOrderController> logger, PurchasingService purchasingService)
         {
             _db = db;
             _logger = logger;
+            _purchasingService = purchasingService;
         }
 
         // GET: api/PurchaseOrder
@@ -81,7 +85,7 @@ namespace ERPSystem.Controllers
 
         // POST: api/PurchaseOrder
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] PurchaseOrder order)
+        public async Task<IActionResult> Create([FromBody] PurchaseOrderCreateDto model)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
@@ -90,12 +94,33 @@ namespace ERPSystem.Controllers
             {
                 var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
 
-                order.PONumber = await GeneratePONumber();
-                order.OrderDate = DateTime.UtcNow;
-                order.Status = "Draft";
-                order.CreatedDate = DateTime.UtcNow;
-                order.CreatedBy = userId;
-                order.CompanyId = 1; // TODO: Get from user context
+                var order = new PurchaseOrder
+                {
+                    CompanyId = model.CompanyId,
+                    PONumber = await GeneratePONumber(),
+                    PurchaseRequestId = model.PurchaseRequestId,
+                    CanvassingId = model.CanvassingId,
+                    SupplierId = model.SupplierId,
+                    OrderDate = DateTime.UtcNow,
+                    RequiredDate = model.RequiredDate,
+                    Status = "Draft",
+                    CreatedDate = DateTime.UtcNow,
+                    CreatedBy = userId,
+                    ShippingAddress = model.ShippingAddress,
+                    Notes = model.Notes
+                };
+
+                foreach (var item in model.Items)
+                {
+                    var poi = new PurchaseOrderItem
+                    {
+                        ProductId = item.ProductId,
+                        Quantity = item.Quantity,
+                        UnitPrice = item.UnitPrice,
+                        LineTotal = item.LineTotal
+                    };
+                    order.Items.Add(poi);
+                }
 
                 // Calculate totals
                 CalculateTotals(order);
@@ -117,13 +142,13 @@ namespace ERPSystem.Controllers
 
         // PUT: api/PurchaseOrder/5
         [HttpPut("{id}")]
-        public async Task<IActionResult> Update(int id, [FromBody] PurchaseOrder order)
+        public async Task<IActionResult> Update(int id, [FromBody] PurchaseOrderCreateDto model)
         {
-            if (id != order.Id)
-                return BadRequest(new { message = "ID mismatch" });
-
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
+
+            if (id != model.Id)
+                return BadRequest(new { message = "ID mismatch" });
 
             try
             {
@@ -140,16 +165,26 @@ namespace ERPSystem.Controllers
                 var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
 
                 // Update fields
-                existingOrder.SupplierId = order.SupplierId;
-                existingOrder.RequiredDate = order.RequiredDate;
-                existingOrder.ShippingAddress = order.ShippingAddress;
-                existingOrder.Notes = order.Notes;
+                existingOrder.SupplierId = model.SupplierId;
+                existingOrder.RequiredDate = model.RequiredDate;
+                existingOrder.ShippingAddress = model.ShippingAddress;
+                existingOrder.Notes = model.Notes;
                 existingOrder.ModifiedDate = DateTime.UtcNow;
                 existingOrder.ModifiedBy = userId;
 
                 // Update items
                 _db.PurchaseOrderItems.RemoveRange(existingOrder.Items);
-                existingOrder.Items = order.Items;
+                existingOrder.Items = new List<PurchaseOrderItem>();
+                foreach (var item in model.Items)
+                {
+                    existingOrder.Items.Add(new PurchaseOrderItem
+                    {
+                        ProductId = item.ProductId,
+                        Quantity = item.Quantity,
+                        UnitPrice = item.UnitPrice,
+                        LineTotal = item.LineTotal
+                    });
+                }
 
                 // Recalculate totals
                 CalculateTotals(existingOrder);
@@ -225,34 +260,15 @@ namespace ERPSystem.Controllers
 
                 var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
 
-                // TODO: Send email to supplier
-                // For now, we'll just log it
-                var emailLog = new EmailLog
-                {
-                    CompanyId = order.CompanyId,
-                    ReferenceType = "PurchaseOrder",
-                    ReferenceId = order.Id,
-                    RecipientEmail = order.Supplier.Email,
-                    Subject = $"Purchase Order {order.PONumber}",
-                    Body = GeneratePOEmailBody(order),
-                    SentDate = DateTime.UtcNow,
-                    Status = "Sent",
-                    SentBy = userId
-                };
-
-                _db.EmailLogs.Add(emailLog);
-
-                order.Status = "Sent";
-                order.SentDate = DateTime.UtcNow;
-                order.ModifiedDate = DateTime.UtcNow;
-                order.ModifiedBy = userId;
-
-                await _db.SaveChangesAsync();
-
-                _logger.LogInformation("Purchase order {Id} sent to supplier {SupplierEmail}",
-                    id, order.Supplier.Email);
+                // Delegate sending to PurchasingService which handles email and EmailLog creation
+                await _purchasingService.SendPurchaseOrderAsync(order.Id, userId);
 
                 return Ok(new { message = "Purchase order sent to supplier" });
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning(ex, "Business rule violation sending purchase order {Id}", id);
+                return BadRequest(new { message = ex.Message });
             }
             catch (Exception ex)
             {

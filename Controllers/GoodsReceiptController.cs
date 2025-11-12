@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using ERPSystem.Data;
 using ERPSystem.Models;
 using System.Security.Claims;
+using ERPSystem.Services;
 
 namespace ERPSystem.Controllers
 {
@@ -14,11 +15,13 @@ namespace ERPSystem.Controllers
     {
         private readonly AppDbContext _db;
         private readonly ILogger<GoodsReceiptController> _logger;
+        private readonly PurchasingService _purchasingService;
 
-        public GoodsReceiptController(AppDbContext db, ILogger<GoodsReceiptController> logger)
+        public GoodsReceiptController(AppDbContext db, ILogger<GoodsReceiptController> logger, PurchasingService purchasingService)
         {
             _db = db;
             _logger = logger;
+            _purchasingService = purchasingService;
         }
 
         // GET: api/GoodsReceipt
@@ -105,58 +108,16 @@ namespace ERPSystem.Controllers
 
             try
             {
-                // Validate PO exists and is in correct status
-                var po = await _db.PurchaseOrders
-                    .Include(p => p.Items)
-                    .FirstOrDefaultAsync(p => p.Id == receipt.PurchaseOrderId);
-
-                if (po == null)
-                    return NotFound(new { message = "Purchase order not found" });
-
-                if (po.Status != "Confirmed" && po.Status != "PartiallyReceived")
-                    return BadRequest(new { message = "Purchase order must be confirmed before receiving" });
-
                 var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
 
-                receipt.GRNumber = await GenerateGRNumber();
-                receipt.ReceiptDate = DateTime.UtcNow;
-                receipt.ReceivedBy = userId;
-                receipt.Status = "Draft";
-                receipt.CreatedDate = DateTime.UtcNow;
-                receipt.CreatedBy = userId;
-                receipt.CompanyId = 1; // TODO: Get from user context
+                var created = await _purchasingService.CreateGoodsReceiptAsync(receipt, userId);
 
-                _db.GoodsReceipts.Add(receipt);
-
-                // Update PO item received quantities
-                foreach (var grItem in receipt.Items)
-                {
-                    var poItem = po.Items.FirstOrDefault(i => i.Id == grItem.PurchaseOrderItemId);
-                    if (poItem != null)
-                    {
-                        poItem.ReceivedQuantity += grItem.ReceivedQuantity;
-                    }
-                }
-
-                // Update PO status based on received quantities
-                var allReceived = po.Items.All(i => i.ReceivedQuantity >= i.Quantity);
-                var anyReceived = po.Items.Any(i => i.ReceivedQuantity > 0);
-
-                if (allReceived)
-                {
-                    po.Status = "Received";
-                }
-                else if (anyReceived)
-                {
-                    po.Status = "PartiallyReceived";
-                }
-
-                await _db.SaveChangesAsync();
-
-                _logger.LogInformation("Goods receipt {GRNumber} created for PO {PONumber}",
-                    receipt.GRNumber, po.PONumber);
-
-                return CreatedAtAction(nameof(GetById), new { id = receipt.Id }, receipt);
+                return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning(ex, "Business rule violation creating goods receipt");
+                return BadRequest(new { message = ex.Message });
             }
             catch (Exception ex)
             {
@@ -172,33 +133,16 @@ namespace ERPSystem.Controllers
         {
             try
             {
-                var receipt = await _db.GoodsReceipts
-                    .Include(gr => gr.Items)
-                        .ThenInclude(i => i.Product)
-                    .Include(gr => gr.Warehouse)
-                    .FirstOrDefaultAsync(gr => gr.Id == id);
-
-                if (receipt == null)
-                    return NotFound(new { message = "Goods receipt not found" });
-
-                if (receipt.Status != "Draft")
-                    return BadRequest(new { message = "Only draft receipts can be approved" });
-
                 var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
 
-                receipt.Status = "Approved";
-                receipt.ApprovedBy = userId;
-                receipt.ApprovalDate = DateTime.UtcNow;
-
-                // TODO: Update inventory when receipt is approved
-                // For now, we'll just log it
-                _logger.LogInformation("Goods receipt {Id} approved - inventory should be updated", id);
-
-                await _db.SaveChangesAsync();
-
-                _logger.LogInformation("Goods receipt {Id} approved by user {UserId}", id, userId);
+                await _purchasingService.ApproveGoodsReceiptAsync(id, userId);
 
                 return Ok(new { message = "Goods receipt approved" });
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning(ex, "Business rule violation approving goods receipt {Id}", id);
+                return BadRequest(new { message = ex.Message });
             }
             catch (Exception ex)
             {
@@ -256,31 +200,6 @@ namespace ERPSystem.Controllers
                 _logger.LogError(ex, "Error deleting goods receipt {Id}", id);
                 return StatusCode(500, new { message = "Internal server error" });
             }
-        }
-
-        // Helper method
-        private async Task<string> GenerateGRNumber()
-        {
-            var year = DateTime.UtcNow.Year;
-            var month = DateTime.UtcNow.Month;
-            var prefix = $"GR{year}{month:D2}";
-
-            var lastGR = await _db.GoodsReceipts
-                .Where(gr => gr.GRNumber.StartsWith(prefix))
-                .OrderByDescending(gr => gr.GRNumber)
-                .FirstOrDefaultAsync();
-
-            int nextNumber = 1;
-            if (lastGR != null)
-            {
-                var lastNumber = lastGR.GRNumber.Substring(prefix.Length);
-                if (int.TryParse(lastNumber, out int num))
-                {
-                    nextNumber = num + 1;
-                }
-            }
-
-            return $"{prefix}{nextNumber:D4}";
         }
     }
 }

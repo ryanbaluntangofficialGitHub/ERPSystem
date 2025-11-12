@@ -8,6 +8,12 @@ import Purchases from './pages/Purchases';
 import HR from './pages/HR';
 import Accounting from './pages/Accounting';
 import Production from './pages/Production';
+import Products from './pages/Products';
+import Warehouses from './pages/Warehouses';
+import PurchaseRequests from './pages/PurchaseRequests';
+import PurchaseOrders from './pages/PurchaseOrders';
+import Canvassings from './pages/Canvassings';
+import GoodsReceipts from './pages/GoodsReceipts';
 
 // Helper function to get role from token
 function getRoleFromToken(token) {
@@ -201,6 +207,54 @@ function App() {
                         element={
                             <RequireAuth allowedRoles={['Production']}>
                                 <Production />
+                            </RequireAuth>
+                        }
+                    />
+                    <Route
+                        path="/products"
+                        element={
+                            <RequireAuth allowedRoles={['Admin','Production']}>
+                                <Products />
+                            </RequireAuth>
+                        }
+                    />
+                    <Route
+                        path="/warehouses"
+                        element={
+                            <RequireAuth allowedRoles={['Admin']}>
+                                <Warehouses />
+                            </RequireAuth>
+                        }
+                    />
+                    <Route
+                        path="/purchase-requests"
+                        element={
+                            <RequireAuth allowedRoles={['Purchase', 'Admin']}>
+                                <PurchaseRequests />
+                            </RequireAuth>
+                        }
+                    />
+                    <Route
+                        path="/purchase-orders"
+                        element={
+                            <RequireAuth allowedRoles={['Purchase', 'Admin']}>
+                                <PurchaseOrders />
+                            </RequireAuth>
+                        }
+                    />
+                    <Route
+                        path="/canvassings"
+                        element={
+                            <RequireAuth allowedRoles={["Purchase","Admin"]}>
+                                <Canvassings />
+                            </RequireAuth>
+                        }
+                    />
+                    <Route
+                        path="/goods-receipts"
+                        element={
+                            <RequireAuth allowedRoles={["Purchase","Admin"]}>
+                                <GoodsReceipts />
                             </RequireAuth>
                         }
                     />

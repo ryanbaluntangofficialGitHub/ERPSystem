@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace ERPSystem.Models
 {
@@ -18,21 +18,23 @@ namespace ERPSystem.Models
 
         public int? DepartmentId { get; set; }
 
-        [Required]
-        public int RequestedBy { get; set; }
-
-        [StringLength(20)]
-        public string Priority { get; set; } = "Medium"; // Low, Medium, High, Urgent
+        [StringLength(50)]
+        public string? Priority { get; set; } = "Normal";
 
         public DateTime? RequiredDate { get; set; }
 
         [Required]
         [StringLength(50)]
-        public string Status { get; set; } = "Draft"; // Draft, PendingApproval, Approved, Rejected, Converted, Cancelled
+        public string Status { get; set; } = "Draft"; // Draft, PendingApproval, Approved, Rejected, Converted
+
+        public int RequestedBy { get; set; }
 
         public int? ApprovedBy { get; set; }
         public DateTime? ApprovalDate { get; set; }
+
+        [StringLength(500)]
         public string? RejectionReason { get; set; }
+
         public string? Notes { get; set; }
 
         public DateTime CreatedDate { get; set; }
@@ -55,20 +57,21 @@ namespace ERPSystem.Models
         public int? ProductId { get; set; }
 
         [Required]
-        [StringLength(500)]
-        public string Description { get; set; } = string.Empty;
-
-        [Required]
-        [Range(0.01, double.MaxValue)]
         public decimal Quantity { get; set; }
 
         public decimal EstimatedPrice { get; set; }
 
-        [StringLength(500)]
-        public string? Purpose { get; set; }
+        [StringLength(50)]
+        public string? UnitOfMeasure { get; set; }
 
         [StringLength(500)]
         public string? Notes { get; set; }
+
+        [StringLength(500)]
+        public string? Description { get; set; } // Added to match seed data
+
+        [StringLength(500)]
+        public string? Purpose { get; set; } // Added to match seed data
 
         // Navigation properties
         public virtual PurchaseRequest PurchaseRequest { get; set; } = null!;

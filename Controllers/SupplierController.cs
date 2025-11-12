@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using ERPSystem.Data;
 using ERPSystem.Models;
 using System.Security.Claims;
+using ERPSystem.DTOs;
 
 namespace ERPSystem.Controllers
 {
@@ -69,7 +70,7 @@ namespace ERPSystem.Controllers
 
         // POST: api/Supplier
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] Supplier supplier)
+        public async Task<IActionResult> Create([FromBody] SupplierCreateUpdateDto model)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
@@ -77,17 +78,37 @@ namespace ERPSystem.Controllers
             try
             {
                 // Check if supplier code already exists
-                if (await _db.Suppliers.AnyAsync(s => s.SupplierCode == supplier.SupplierCode))
+                if (await _db.Suppliers.AnyAsync(s => s.SupplierCode == model.SupplierCode))
                 {
                     return BadRequest(new { message = "Supplier code already exists" });
                 }
 
                 var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
 
-                supplier.CreatedDate = DateTime.UtcNow;
-                supplier.CreatedBy = userId;
-                supplier.CompanyId = 1; // TODO: Get from user context
-                supplier.IsActive = true;
+                var supplier = new Supplier
+                {
+                    SupplierCode = model.SupplierCode.Trim(),
+                    SupplierName = model.SupplierName.Trim(),
+                    ContactPerson = model.ContactPerson,
+                    Email = model.Email,
+                    Phone = model.Phone,
+                    Mobile = model.Mobile,
+                    TaxId = model.TaxId,
+                    Address = model.Address,
+                    City = model.City,
+                    State = model.State,
+                    Country = model.Country,
+                    PostalCode = model.PostalCode,
+                    PaymentTerms = model.PaymentTerms,
+                    SupplierType = model.SupplierType,
+                    BankName = model.BankName,
+                    BankAccount = model.BankAccount,
+                    Notes = model.Notes,
+                    IsActive = model.IsActive,
+                    CompanyId = 1, // TODO: derive from user
+                    CreatedDate = DateTime.UtcNow,
+                    CreatedBy = userId
+                };
 
                 _db.Suppliers.Add(supplier);
                 await _db.SaveChangesAsync();
@@ -106,11 +127,8 @@ namespace ERPSystem.Controllers
 
         // PUT: api/Supplier/5
         [HttpPut("{id}")]
-        public async Task<IActionResult> Update(int id, [FromBody] Supplier supplier)
+        public async Task<IActionResult> Update(int id, [FromBody] SupplierCreateUpdateDto model)
         {
-            if (id != supplier.Id)
-                return BadRequest(new { message = "ID mismatch" });
-
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
@@ -122,8 +140,8 @@ namespace ERPSystem.Controllers
                     return NotFound(new { message = "Supplier not found" });
 
                 // Check if supplier code is being changed and if it already exists
-                if (existingSupplier.SupplierCode != supplier.SupplierCode &&
-                    await _db.Suppliers.AnyAsync(s => s.SupplierCode == supplier.SupplierCode))
+                if (!string.Equals(existingSupplier.SupplierCode, model.SupplierCode, StringComparison.OrdinalIgnoreCase) &&
+                    await _db.Suppliers.AnyAsync(s => s.SupplierCode == model.SupplierCode && s.Id != id))
                 {
                     return BadRequest(new { message = "Supplier code already exists" });
                 }
@@ -131,23 +149,24 @@ namespace ERPSystem.Controllers
                 var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
 
                 // Update fields
-                existingSupplier.SupplierCode = supplier.SupplierCode;
-                existingSupplier.SupplierName = supplier.SupplierName;
-                existingSupplier.ContactPerson = supplier.ContactPerson;
-                existingSupplier.Email = supplier.Email;
-                existingSupplier.Phone = supplier.Phone;
-                existingSupplier.Mobile = supplier.Mobile;
-                existingSupplier.TaxId = supplier.TaxId;
-                existingSupplier.Address = supplier.Address;
-                existingSupplier.City = supplier.City;
-                existingSupplier.State = supplier.State;
-                existingSupplier.Country = supplier.Country;
-                existingSupplier.PostalCode = supplier.PostalCode;
-                existingSupplier.PaymentTerms = supplier.PaymentTerms;
-                existingSupplier.SupplierType = supplier.SupplierType;
-                existingSupplier.BankName = supplier.BankName;
-                existingSupplier.BankAccount = supplier.BankAccount;
-                existingSupplier.Notes = supplier.Notes;
+                existingSupplier.SupplierCode = model.SupplierCode.Trim();
+                existingSupplier.SupplierName = model.SupplierName.Trim();
+                existingSupplier.ContactPerson = model.ContactPerson;
+                existingSupplier.Email = model.Email;
+                existingSupplier.Phone = model.Phone;
+                existingSupplier.Mobile = model.Mobile;
+                existingSupplier.TaxId = model.TaxId;
+                existingSupplier.Address = model.Address;
+                existingSupplier.City = model.City;
+                existingSupplier.State = model.State;
+                existingSupplier.Country = model.Country;
+                existingSupplier.PostalCode = model.PostalCode;
+                existingSupplier.PaymentTerms = model.PaymentTerms;
+                existingSupplier.SupplierType = model.SupplierType;
+                existingSupplier.BankName = model.BankName;
+                existingSupplier.BankAccount = model.BankAccount;
+                existingSupplier.Notes = model.Notes;
+                existingSupplier.IsActive = model.IsActive;
                 existingSupplier.ModifiedDate = DateTime.UtcNow;
                 existingSupplier.ModifiedBy = userId;
 
