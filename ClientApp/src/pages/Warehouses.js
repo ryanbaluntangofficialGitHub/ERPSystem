@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api';
 import WarehouseForm from './WarehouseForm';
+import { useToast } from '../components/ToastProvider';
 
 export default function Warehouses() {
+    const toast = useToast();
     const [warehouses, setWarehouses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -21,12 +23,17 @@ export default function Warehouses() {
         } catch (err) {
             console.error('Error fetching warehouses', err);
             setError('Failed to load warehouses');
+            toast.error(err.response?.data?.message || err.message || 'Failed to load warehouses');
         } finally { setLoading(false); }
     };
 
     const handleCreate = () => { setEditing(null); setShowForm(true); };
     const handleEdit = (w) => { setEditing(w); setShowForm(true); };
-    const handleDelete = async (id) => { if (!window.confirm('Delete this warehouse?')) return; try { await api.delete(`/Warehouse/${id}`); await fetchWarehouses(); } catch (err) { console.error('Delete failed', err); alert('Delete failed'); } };
+    const handleDelete = async (id) => { 
+        if (!window.confirm('Delete this warehouse?')) return; 
+        try { await api.delete(`/Warehouse/${id}`); toast.success('Warehouse deleted'); await fetchWarehouses(); } 
+        catch (err) { console.error('Delete failed', err); toast.error(err.response?.data?.message || err.message || 'Delete failed'); }
+    };
 
     const onSaved = async () => { setShowForm(false); setEditing(null); await fetchWarehouses(); };
 

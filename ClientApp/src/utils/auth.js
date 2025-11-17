@@ -13,6 +13,7 @@ export const removeToken = () => {
 };
 
 export const decodeToken = (token) => {
+    if (!token) return null;
     try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         return payload;
@@ -22,18 +23,32 @@ export const decodeToken = (token) => {
     }
 };
 
+// Robust role extraction - handle different claim names and arrays
 export const getUserRole = (token) => {
-    const payload = decodeToken(token);
-    return payload ? payload[JWT_CLAIM_TYPES.ROLE] : null;
+    const raw = token || getToken();
+    const payload = decodeToken(raw);
+    if (!payload) return null;
+
+    // Try several common claim names
+    let role = payload[JWT_CLAIM_TYPES.ROLE] || payload.role || payload.Role || payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/role'] || payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/role'.toLowerCase()];
+
+    // If role is an array, take first
+    if (Array.isArray(role)) role = role[0];
+
+    return role || null;
 };
 
 export const getUserName = (token) => {
-    const payload = decodeToken(token);
-    return payload ? payload[JWT_CLAIM_TYPES.NAME] : null;
+    const raw = token || getToken();
+    const payload = decodeToken(raw);
+    if (!payload) return null;
+
+    return payload[JWT_CLAIM_TYPES.NAME] || payload.name || payload.unique_name || null;
 };
 
 export const isTokenExpired = (token) => {
-    const payload = decodeToken(token);
+    const raw = token || getToken();
+    const payload = decodeToken(raw);
     if (!payload || !payload.exp) return true;
 
     return Date.now() >= payload.exp * 1000;

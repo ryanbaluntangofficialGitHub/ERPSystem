@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +14,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 // Register application services
 builder.Services.AddScoped<PurchasingService>();
+builder.Services.AddScoped<CodeGenerator>();
 builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
 
 // --- JWT Authentication ---
@@ -80,7 +82,12 @@ builder.Services.AddAuthorization(options =>
 });
 
 // --- Controllers ---
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -109,7 +116,12 @@ if (app.Environment.IsDevelopment())
 // CORS must come before Authentication!
 app.UseCors("AllowReactApp");
 
-app.UseHttpsRedirection();
+// Only redirect HTTP->HTTPS in Production to avoid CORS preflight redirects during dev
+if (app.Environment.IsProduction())
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseAuthentication();
 app.UseAuthorization();
 

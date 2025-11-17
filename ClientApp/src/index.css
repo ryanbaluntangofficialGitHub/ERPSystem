@@ -3,3 +3,25 @@
 @tailwind utilities;
 
 body { @apply bg-gray-100 text-gray-800; }
+
+/* Theme variables */
+:root {
+  --bg: #ffffff;
+  --text: #111827;
+  --muted: #6b7280;
+}
+
+[data-theme='dark'] {
+  --bg: #0f172a;
+  --text: #e6eef8;
+  --muted: #94a3b8;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* simple fade-in animation for dropdown */
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+.animate-fade-in { animation: fadeIn 160ms ease-out; }

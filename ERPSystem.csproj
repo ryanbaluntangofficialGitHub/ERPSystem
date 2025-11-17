@@ -21,8 +21,6 @@
 
   <ItemGroup>
     <Folder Include="ClientApp\src\config\" />
-    <Folder Include="ClientApp\src\utils\" />
-    <Folder Include="Migrations\" />
   </ItemGroup>
 
   <!-- Exclude test sources and any test-generated files from being implicitly compiled or copied into the web project -->

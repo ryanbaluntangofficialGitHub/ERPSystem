@@ -7,6 +7,7 @@ using System.Security.Claims;
 using System.Text;
 using ERPSystem.Data;
 using ERPSystem.Models;
+using System.ComponentModel.DataAnnotations;
 
 namespace ERPSystem.Controllers
 {
@@ -176,31 +177,23 @@ namespace ERPSystem.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Register([FromBody] RegisterRequest request)
         {
-            // Validate input
-            if (string.IsNullOrWhiteSpace(request.Username) ||
-                string.IsNullOrWhiteSpace(request.Password) ||
-                string.IsNullOrWhiteSpace(request.RoleName))
-            {
-                return BadRequest(new { message = "Username, password, and role are required" });
-            }
+            if (!ModelState.IsValid)
+                return ValidationProblem(ModelState);
 
             // Check if username already exists
             if (await _context.Users.AnyAsync(u => u.Username == request.Username))
             {
-                return BadRequest(new { message = "Username already exists" });
+                ModelState.AddModelError(nameof(request.Username), "Username already exists");
+                return ValidationProblem(ModelState);
             }
 
-            // Validate password strength
-            if (request.Password.Length < 8)
-            {
-                return BadRequest(new { message = "Password must be at least 8 characters long" });
-            }
-
+            // Validate password strength (server-side validation already covered by DataAnnotations)
             // Find the role
             var role = await _context.Roles.FirstOrDefaultAsync(r => r.Name == request.RoleName);
             if (role == null)
             {
-                return BadRequest(new { message = $"Invalid role: {request.RoleName}. Valid roles are: Admin, Sales, Purchase, HR, Accounting, Production" });
+                ModelState.AddModelError(nameof(request.RoleName), $"Invalid role: {request.RoleName}");
+                return ValidationProblem(ModelState);
             }
 
             // Create new user with hashed password
@@ -294,24 +287,14 @@ namespace ERPSystem.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
         {
-            if (string.IsNullOrWhiteSpace(request.Username) ||
-                string.IsNullOrWhiteSpace(request.NewPassword))
-            {
-                return BadRequest(new { message = "Username and new password are required" });
-            }
+            if (!ModelState.IsValid)
+                return ValidationProblem(ModelState);
 
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == request.Username);
 
             if (user == null)
                 return NotFound(new { message = "User not found" });
 
-            // Validate password strength
-            if (request.NewPassword.Length < 8)
-            {
-                return BadRequest(new { message = "Password must be at least 8 characters long" });
-            }
-
-            // Hash and save new password
             user.PasswordHash = DbInitializer.HashPassword(request.NewPassword);
             await _context.SaveChangesAsync();
 
@@ -380,19 +363,31 @@ namespace ERPSystem.Controllers
 
     public class RegisterRequest
     {
+        [Required]
+        [StringLength(100, MinimumLength = 3)]
         public string Username { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(100, MinimumLength = 8)]
         public string Password { get; set; } = string.Empty;
+
+        [Required]
         public string RoleName { get; set; } = string.Empty;
     }
 
     public class ResetPasswordRequest
     {
+        [Required]
         public string Username { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(100, MinimumLength = 8)]
         public string NewPassword { get; set; } = string.Empty;
     }
 
     public class UpdateRoleRequest
     {
+        [Required]
         public string RoleName { get; set; } = string.Empty;
     }
 

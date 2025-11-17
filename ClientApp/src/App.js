@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { ToastProvider } from './components/ToastProvider';
 import Sidebar from './components/Sidebar';
+import Header from './components/Header';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Sales from './pages/Sales';
@@ -14,6 +16,11 @@ import PurchaseRequests from './pages/PurchaseRequests';
 import PurchaseOrders from './pages/PurchaseOrders';
 import Canvassings from './pages/Canvassings';
 import GoodsReceipts from './pages/GoodsReceipts';
+import Users from './pages/Users';
+import Profile from './pages/Profile';
+import Suppliers from './pages/Suppliers';
+import Departments from './pages/Departments';
+import Invoices from './pages/Invoices';
 
 // Helper function to get role from token
 function getRoleFromToken(token) {
@@ -158,110 +165,155 @@ function App() {
     }
 
     return (
-        <div className="min-h-screen flex bg-gray-50">
-            <Sidebar onLogout={handleLogout} userRole={role} />
-            <main className="flex-1 p-6 overflow-auto">
-                <Routes>
-                    <Route
-                        path="/"
-                        element={
-                            <RequireAuth>
-                                <Dashboard />
-                            </RequireAuth>
-                        }
-                    />
-                    <Route
-                        path="/sales"
-                        element={
-                            <RequireAuth allowedRoles={['Sales']}>
-                                <Sales />
-                            </RequireAuth>
-                        }
-                    />
-                    <Route
-                        path="/purchases"
-                        element={
-                            <RequireAuth allowedRoles={['Purchase']}>
-                                <Purchases />
-                            </RequireAuth>
-                        }
-                    />
-                    <Route
-                        path="/hr"
-                        element={
-                            <RequireAuth allowedRoles={['HR']}>
-                                <HR />
-                            </RequireAuth>
-                        }
-                    />
-                    <Route
-                        path="/accounting"
-                        element={
-                            <RequireAuth allowedRoles={['Accounting']}>
-                                <Accounting />
-                            </RequireAuth>
-                        }
-                    />
-                    <Route
-                        path="/production"
-                        element={
-                            <RequireAuth allowedRoles={['Production']}>
-                                <Production />
-                            </RequireAuth>
-                        }
-                    />
-                    <Route
-                        path="/products"
-                        element={
-                            <RequireAuth allowedRoles={['Admin','Production']}>
-                                <Products />
-                            </RequireAuth>
-                        }
-                    />
-                    <Route
-                        path="/warehouses"
-                        element={
-                            <RequireAuth allowedRoles={['Admin']}>
-                                <Warehouses />
-                            </RequireAuth>
-                        }
-                    />
-                    <Route
-                        path="/purchase-requests"
-                        element={
-                            <RequireAuth allowedRoles={['Purchase', 'Admin']}>
-                                <PurchaseRequests />
-                            </RequireAuth>
-                        }
-                    />
-                    <Route
-                        path="/purchase-orders"
-                        element={
-                            <RequireAuth allowedRoles={['Purchase', 'Admin']}>
-                                <PurchaseOrders />
-                            </RequireAuth>
-                        }
-                    />
-                    <Route
-                        path="/canvassings"
-                        element={
-                            <RequireAuth allowedRoles={["Purchase","Admin"]}>
-                                <Canvassings />
-                            </RequireAuth>
-                        }
-                    />
-                    <Route
-                        path="/goods-receipts"
-                        element={
-                            <RequireAuth allowedRoles={["Purchase","Admin"]}>
-                                <GoodsReceipts />
-                            </RequireAuth>
-                        }
-                    />
-                    <Route path="*" element={<Navigate to="/" />} />
-                </Routes>
-            </main>
-        </div>
+        <ToastProvider>
+            <div className="min-h-screen flex bg-gray-50">
+                <Sidebar onLogout={handleLogout} userRole={role} />
+                <div className="flex-1 flex flex-col">
+                    <Header onLogout={handleLogout} />
+                    <main className="flex-1 p-6 overflow-auto">
+                        <Routes>
+                            <Route
+                                path="/"
+                                element={
+                                    <RequireAuth>
+                                        <Dashboard />
+                                    </RequireAuth>
+                                }
+                            />
+                            <Route
+                                path="/sales"
+                                element={
+                                    <RequireAuth allowedRoles={['Sales']}>
+                                        <Sales />
+                                    </RequireAuth>
+                                }
+                            />
+                            <Route
+                                path="/purchases"
+                                element={
+                                    <RequireAuth allowedRoles={['Purchase']}>
+                                        <Purchases />
+                                    </RequireAuth>
+                                }
+                            />
+                            <Route
+                                path="/hr"
+                                element={
+                                    <RequireAuth allowedRoles={['HR']}>
+                                        <HR />
+                                    </RequireAuth>
+                                }
+                            />
+                            <Route
+                                path="/accounting"
+                                element={
+                                    <RequireAuth allowedRoles={['Accounting']}>
+                                        <Accounting />
+                                    </RequireAuth>
+                                }
+                            />
+                            <Route
+                                path="/production"
+                                element={
+                                    <RequireAuth allowedRoles={['Production']}>
+                                        <Production />
+                                    </RequireAuth>
+                                }
+                            />
+                            <Route
+                                path="/products"
+                                element={
+                                    <RequireAuth allowedRoles={['Admin','Production']}>
+                                        <Products />
+                                    </RequireAuth>
+                                }
+                            />
+                            <Route
+                                path="/warehouses"
+                                element={
+                                    <RequireAuth allowedRoles={['Admin']}>
+                                        <Warehouses />
+                                    </RequireAuth>
+                                }
+                            />
+                            <Route
+                                path="/purchase-requests"
+                                element={
+                                    <RequireAuth allowedRoles={['Purchase', 'Admin']}>
+                                        <PurchaseRequests />
+                                    </RequireAuth>
+                                }
+                            />
+                            <Route
+                                path="/purchase-orders"
+                                element={
+                                    <RequireAuth allowedRoles={['Purchase', 'Admin']}>
+                                        <PurchaseOrders />
+                                    </RequireAuth>
+                                }
+                            />
+                            <Route
+                                path="/canvassings"
+                                element={
+                                    <RequireAuth allowedRoles={["Purchase","Admin"]}>
+                                        <Canvassings />
+                                    </RequireAuth>
+                                }
+                            />
+                            <Route
+                                path="/goods-receipts"
+                                element={
+                                    <RequireAuth allowedRoles={["Purchase","Admin"]}>
+                                        <GoodsReceipts />
+                                    </RequireAuth>
+                                }
+                            />
+                            <Route
+                                path="/users"
+                                element={
+                                    <RequireAuth allowedRoles={['Admin']}>
+                                        <Users />
+                                    </RequireAuth>
+                                }
+                            />
+                            <Route
+                                path="/profile"
+                                element={
+                                    <RequireAuth>
+                                        <Profile />
+                                    </RequireAuth>
+                                }
+                            />
+                            <Route
+                                path="/suppliers"
+                                element={
+                                    <RequireAuth allowedRoles={["Purchase","Admin"]}>
+                                        <Suppliers />
+                                    </RequireAuth>
+                                }
+                            />
+                            <Route
+                                path="/departments"
+                                element={
+                                    <RequireAuth allowedRoles={["HR","Admin"]}>
+                                        <Departments />
+                                    </RequireAuth>
+                                }
+                            />
+                            <Route
+                                path="/invoices"
+                                element={
+                                    <RequireAuth allowedRoles={["Purchase","Accounting","Admin"]}>
+                                        <Invoices />
+                                    </RequireAuth>
+                                }
+                            />
+                            <Route path="*" element={<Navigate to="/" />} />
+                        </Routes>
+                    </main>
+                </div>
+            </div>
+        </ToastProvider>
     );
 }
 

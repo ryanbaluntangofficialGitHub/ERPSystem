@@ -14,7 +14,9 @@ export default function Purchases() {
         try {
             setLoading(true);
             const response = await api.get('/Purchasing');
-            setOrders(response.data);
+            // normalize possible response shapes
+            const data = response.data?.items || response.data || [];
+            setOrders(Array.isArray(data) ? data : []);
             setError(null);
         } catch (err) {
             console.error('Error fetching purchase orders:', err);
@@ -73,22 +75,31 @@ export default function Purchases() {
                                 </td>
                             </tr>
                         ) : (
-                            orders.map((order) => (
-                                <tr key={order.id} className="hover:bg-gray-50">
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                        PO-{order.id}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                        {order.supplier}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                        {new Date(order.date).toLocaleDateString()}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold">
-                                        ₱{order.total.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
-                                    </td>
-                                </tr>
-                            ))
+                            orders.map((order) => {
+                                const dateRaw = order.date || order.orderDate || order.order_date || order.orderDateUtc || order.orderDateTime;
+                                const totalRaw = order.total ?? order.totalAmount ?? order.total_amount ?? order.TotalAmount;
+                                const supplierRaw = order.supplier?.supplierName || order.supplier?.supplierName || order.supplier || order.supplierName || order.SupplierName;
+
+                                const dateStr = dateRaw ? new Date(dateRaw).toLocaleDateString() : '';
+                                const totalStr = (totalRaw !== undefined && totalRaw !== null) ? Number(totalRaw).toLocaleString('en-PH', { minimumFractionDigits: 2 }) : '0.00';
+
+                                return (
+                                    <tr key={order.id ?? order.Id} className="hover:bg-gray-50">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                            {order.poNumber || order.PONumber || `PO-${order.id ?? order.Id}`}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                            {supplierRaw}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                            {dateStr}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold">
+                                            ₱{totalStr}
+                                        </td>
+                                    </tr>
+                                );
+                            })
                         )}
                     </tbody>
                 </table>

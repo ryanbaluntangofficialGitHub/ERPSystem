@@ -7,7 +7,6 @@ namespace ERPSystem.DTOs
         [Required]
         public int CompanyId { get; set; }
 
-        [Required]
         [StringLength(50)]
         public string ProductCode { get; set; } = string.Empty;
 

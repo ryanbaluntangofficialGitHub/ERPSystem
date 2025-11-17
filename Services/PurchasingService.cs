@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using ERPSystem.Data;
 using ERPSystem.Models;
+using ERPSystem.Services;
 
 namespace ERPSystem.Services
 {
@@ -14,12 +15,14 @@ namespace ERPSystem.Services
         private readonly AppDbContext _db;
         private readonly ILogger<PurchasingService> _logger;
         private readonly IEmailSender? _emailSender;
+        private readonly CodeGenerator _codeGenerator;
 
-        public PurchasingService(AppDbContext db, ILogger<PurchasingService> logger, IEmailSender? emailSender = null)
+        public PurchasingService(AppDbContext db, ILogger<PurchasingService> logger, IEmailSender? emailSender = null, CodeGenerator? codeGenerator = null)
         {
             _db = db;
             _logger = logger;
             _emailSender = emailSender;
+            _codeGenerator = codeGenerator ?? throw new ArgumentNullException(nameof(codeGenerator));
         }
 
         // Convert completed canvassing to a new PurchaseOrder
@@ -86,6 +89,10 @@ namespace ERPSystem.Services
                 if (tx is not null) await tx.CommitAsync();
 
                 _logger.LogInformation("Converted canvassing {CanvassingId} to PO {PONumber}", canvassingId, po.PONumber);
+
+                // Save audit trail
+                await AuditAsync(userId, "ConvertToPO", "Canvassing", canvassingId, $"Converted canvassing {canvassingId} to PO {po.PONumber}");
+
                 return po;
             }
             catch (Exception ex)
@@ -275,26 +282,8 @@ namespace ERPSystem.Services
         // Make number generators public for controller/tests
         public async Task<string> GeneratePONumberAsync()
         {
-            var year = DateTime.UtcNow.Year;
-            var month = DateTime.UtcNow.Month;
-            var prefix = $"PO{year}{month:D2}";
-
-            var lastPO = await _db.PurchaseOrders
-                .Where(po => po.PONumber.StartsWith(prefix))
-                .OrderByDescending(po => po.PONumber)
-                .FirstOrDefaultAsync();
-
-            int nextNumber = 1;
-            if (lastPO != null)
-            {
-                var lastNumber = lastPO.PONumber.Substring(prefix.Length);
-                if (int.TryParse(lastNumber, out int num))
-                {
-                    nextNumber = num + 1;
-                }
-            }
-
-            return $"{prefix}{nextNumber:D4}";
+            // Use CodeGenerator to produce PO + 10 digits
+            return await _codeGenerator.GeneratePrefixedDocumentNumberAsync("PO", 12);
         }
 
         public async Task<string> GenerateGRNumberAsync()
@@ -348,6 +337,31 @@ Best regards,
 Purchasing Department
 ";
             return body;
+        }
+
+        // General-purpose audit log method
+        public async Task AuditAsync(int userId, string action, string entity, int? entityId, string? details = null)
+        {
+            try
+            {
+                var log = new AuditLog
+                {
+                    CompanyId = 1,
+                    UserId = userId,
+                    Action = action,
+                    Entity = entity,
+                    EntityId = entityId,
+                    Details = details,
+                    CreatedDate = DateTime.UtcNow
+                };
+
+                _db.AuditLogs.Add(log);
+                await _db.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to write audit log");
+            }
         }
     }
 }

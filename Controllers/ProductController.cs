@@ -5,6 +5,7 @@ using ERPSystem.Data;
 using ERPSystem.Models;
 using ERPSystem.DTOs;
 using System.Security.Claims;
+using ERPSystem.Services;
 
 namespace ERPSystem.Controllers
 {
@@ -15,11 +16,15 @@ namespace ERPSystem.Controllers
     {
         private readonly AppDbContext _db;
         private readonly ILogger<ProductController> _logger;
+        private readonly PurchasingService _purchasingService;
+        private readonly CodeGenerator _codeGenerator;
 
-        public ProductController(AppDbContext db, ILogger<ProductController> logger)
+        public ProductController(AppDbContext db, ILogger<ProductController> logger, PurchasingService purchasingService, CodeGenerator codeGenerator)
         {
             _db = db;
             _logger = logger;
+            _purchasingService = purchasingService;
+            _codeGenerator = codeGenerator;
         }
 
         [HttpGet]
@@ -89,7 +94,7 @@ namespace ERPSystem.Controllers
             var prod = new Product
             {
                 CompanyId = model.CompanyId,
-                ProductCode = model.ProductCode.Trim(),
+                ProductCode = string.IsNullOrWhiteSpace(model.ProductCode) ? await _codeGenerator.GeneratePrefixedDocumentNumberAsync("PD", 14) : model.ProductCode.Trim(),
                 Name = model.Name.Trim(),
                 Description = model.Description,
                 UnitOfMeasure = model.UnitOfMeasure,
@@ -102,6 +107,9 @@ namespace ERPSystem.Controllers
 
             _db.Products.Add(prod);
             await _db.SaveChangesAsync();
+
+            // Audit
+            await _purchasingService.AuditAsync(userId, "Create", "Product", prod.Id, $"Product {prod.ProductCode} created");
 
             var dto = new ProductDto
             {
@@ -148,6 +156,10 @@ namespace ERPSystem.Controllers
 
             await _db.SaveChangesAsync();
 
+            // Audit
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            await _purchasingService.AuditAsync(userId, "Update", "Product", prod.Id, $"Product {prod.ProductCode} updated");
+
             return NoContent();
         }
 
@@ -159,7 +171,14 @@ namespace ERPSystem.Controllers
 
             // Soft delete
             prod.IsActive = false;
+            prod.ModifiedDate = DateTime.UtcNow;
+            prod.ModifiedBy = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
             await _db.SaveChangesAsync();
+
+            // Audit
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            await _purchasingService.AuditAsync(userId, "Delete", "Product", id, $"Product {prod.ProductCode} deleted");
+
             return NoContent();
         }
 
@@ -175,6 +194,10 @@ namespace ERPSystem.Controllers
             prod.ModifiedDate = DateTime.UtcNow;
             prod.ModifiedBy = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
             await _db.SaveChangesAsync();
+
+            // Audit
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            await _purchasingService.AuditAsync(userId, "AdjustStock", "Product", id, $"Adjusted stock by {dto.Adjustment}");
 
             return Ok(new { prod.Id, prod.Quantity });
         }

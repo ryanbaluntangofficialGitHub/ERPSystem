@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api';
 import ProductForm from './ProductForm';
+import { useToast } from '../components/ToastProvider';
 
 export default function Products() {
+    const toast = useToast();
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -23,6 +25,7 @@ export default function Products() {
         } catch (err) {
             console.error('Error fetching products', err);
             setError('Failed to load products');
+            toast.error(err.response?.data?.message || err.message || 'Failed to load products');
         } finally {
             setLoading(false);
         }
@@ -42,22 +45,24 @@ export default function Products() {
         if (!window.confirm('Delete this product?')) return;
         try {
             await api.delete(`/Product/${id}`);
+            toast.success('Product deleted');
             await fetchProducts();
         } catch (err) {
             console.error('Delete failed', err);
-            alert('Delete failed');
+            toast.error(err.response?.data?.message || err.message || 'Delete failed');
         }
     };
 
     const handleAdjust = async (id) => {
         const adj = parseInt(prompt('Enter stock adjustment (positive or negative):', '0') || '0', 10);
-        if (isNaN(adj)) return alert('Invalid number');
+        if (isNaN(adj)) return toast.error('Invalid number');
         try {
             await api.post(`/Product/${id}/adjust`, { adjustment: adj });
+            toast.success('Stock adjusted');
             await fetchProducts();
         } catch (err) {
             console.error('Adjust failed', err);
-            alert('Adjust failed');
+            toast.error(err.response?.data?.message || err.message || 'Adjust failed');
         }
     };
 

@@ -28,6 +28,10 @@ namespace ERPSystem.Models
         public DateTime CreatedDate { get; set; }
         public int CreatedBy { get; set; }
 
+        // Optional audit fields
+        public DateTime? ModifiedDate { get; set; }
+        public int? ModifiedBy { get; set; }
+
         // Navigation properties
         public virtual PurchaseRequest? PurchaseRequest { get; set; }
         public virtual Supplier? SelectedSupplier { get; set; }

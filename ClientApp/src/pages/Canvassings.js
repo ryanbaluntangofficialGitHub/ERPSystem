@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api';
 import CanvassingForm from './CanvassingForm';
+import { useToast } from '../components/ToastProvider';
 
 export default function Canvassings() {
+    const toast = useToast();
     const [list, setList] = useState([]);
     const [loading, setLoading] = useState(true);
     const [editing, setEditing] = useState(null);
     const [showForm, setShowForm] = useState(false);
 
     useEffect(() => { fetchList(); }, []);
-    const fetchList = async () => { try { setLoading(true); const res = await api.get('/Canvassing'); setList(res.data || []); } catch (err) { console.error(err); } finally { setLoading(false); } };
+    const fetchList = async () => { try { setLoading(true); const res = await api.get('/Canvassing'); setList(res.data || []); } catch (err) { console.error(err); toast.error(err.response?.data?.message || err.message || 'Failed to load canvassings'); } finally { setLoading(false); } };
 
     if (loading) return <div className="flex justify-center items-center h-64">Loading canvassings...</div>;
 
@@ -25,7 +27,7 @@ export default function Canvassings() {
                 </div>
             </div>
 
-            {showForm && <div className="mb-6"><CanvassingForm canvassing={editing} onSaved={() => { setShowForm(false); fetchList(); }} onCancel={() => setShowForm(false)} /></div>}
+            {showForm && <div className="mb-6"><CanvassingForm canvassing={editing} onSaved={() => { setShowForm(false); fetchList(); toast.success('Canvassing saved'); }} onCancel={() => setShowForm(false)} /></div>}
 
             <div className="bg-white rounded-lg shadow overflow-auto">
                 <table className="min-w-full divide-y divide-gray-200">
@@ -45,7 +47,7 @@ export default function Canvassings() {
                                 <td className="px-6 py-4">{c.status}</td>
                                 <td className="px-6 py-4 text-right">
                                     {c.status === 'InProgress' && <button onClick={() => { setEditing(c); setShowForm(true); }} className="text-blue-600 mr-2">Edit</button>}
-                                    {c.status === 'InProgress' && <button onClick={async () => { if (window.confirm('Mark completed?')) { await api.post(`/Canvassing/${c.id}/select-supplier`, { supplierId: c.selectedSupplierId || 0 }); await fetchList(); } }} className="text-green-600">Complete</button>}
+                                    {c.status === 'InProgress' && <button onClick={async () => { if (window.confirm('Mark completed?')) { try { await api.post(`/Canvassing/${c.id}/select-supplier`, { supplierId: c.selectedSupplierId || 0 }); toast.success('Canvassing completed'); await fetchList(); } catch (err) { toast.error(err.response?.data?.message || err.message || 'Complete failed'); } } }} className="text-green-600">Complete</button>}
                                 </td>
                             </tr>
                         ))}

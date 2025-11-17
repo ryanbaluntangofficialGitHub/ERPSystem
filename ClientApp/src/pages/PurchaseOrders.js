@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api';
+import { useToast } from '../components/ToastProvider';
 
 export default function PurchaseOrders() {
+    const toast = useToast();
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [busyIds, setBusyIds] = useState(new Set());
 
     useEffect(() => { fetchOrders(); }, []);
 
@@ -16,18 +19,25 @@ export default function PurchaseOrders() {
             setError(null);
         } catch (err) {
             console.error('Error fetching POs', err);
-            setError('Failed to load purchase orders');
+            const msg = err.response?.data?.message || err.message || 'Failed to load purchase orders';
+            setError(msg);
+            toast.error(msg);
         } finally { setLoading(false); }
     };
 
     const doAction = async (id, action) => {
         if (!window.confirm(`Are you sure you want to ${action} PO ${id}?`)) return;
         try {
+            setBusyIds(prev => new Set(prev).add(id));
             await api.post(`/PurchaseOrder/${id}/${action}`);
+            toast.success(`${action.charAt(0).toUpperCase() + action.slice(1)} action succeeded`);
             await fetchOrders();
         } catch (err) {
             console.error(`${action} failed`, err);
-            alert(`${action} failed: ${err.response?.data?.message || err.message}`);
+            const msg = err.response?.data?.message || err.message || `${action} failed`;
+            toast.error(msg);
+        } finally {
+            setBusyIds(prev => { const next = new Set(prev); next.delete(id); return next; });
         }
     };
 
@@ -58,13 +68,13 @@ export default function PurchaseOrders() {
                         ) : orders.map(o => (
                             <tr key={o.id} className="hover:bg-gray-50">
                                 <td className="px-6 py-4">{o.poNumber || o.PONumber || `PO-${o.id}`}</td>
-                                <td className="px-6 py-4">{o.supplier?.supplierName || o.supplier?.suppliername || o.supplier?.supplierName || (o.supplier && (o.supplier.supplierName || o.supplier.suppliername)) || (o.supplierId)}</td>
+                                <td className="px-6 py-4">{o.supplier?.supplierName || o.supplier?.suppliername || o.supplierId}</td>
                                 <td className="px-6 py-4">{o.orderDate ? new Date(o.orderDate).toLocaleDateString() : ''}</td>
                                 <td className="px-6 py-4">{o.status}</td>
                                 <td className="px-6 py-4 text-right">
-                                    {o.status === 'Draft' && <button onClick={() => doAction(o.id, 'approve')} className="text-green-600 mr-2">Approve</button>}
-                                    {o.status === 'Approved' && <button onClick={() => doAction(o.id, 'send')} className="text-blue-600 mr-2">Send</button>}
-                                    {o.status === 'Sent' && <button onClick={() => doAction(o.id, 'confirm')} className="text-indigo-600 mr-2">Confirm</button>}
+                                    {o.status === 'Draft' && <button disabled={busyIds.has(o.id)} onClick={() => doAction(o.id, 'approve')} className="text-green-600 mr-2">{busyIds.has(o.id) ? 'Processing...' : 'Approve'}</button>}
+                                    {o.status === 'Approved' && <button disabled={busyIds.has(o.id)} onClick={() => doAction(o.id, 'send')} className="text-blue-600 mr-2">{busyIds.has(o.id) ? 'Processing...' : 'Send'}</button>}
+                                    {o.status === 'Sent' && <button disabled={busyIds.has(o.id)} onClick={() => doAction(o.id, 'confirm')} className="text-indigo-600 mr-2">{busyIds.has(o.id) ? 'Processing...' : 'Confirm'}</button>}
                                 </td>
                             </tr>
                         ))}

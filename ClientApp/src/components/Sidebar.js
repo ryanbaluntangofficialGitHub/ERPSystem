@@ -21,9 +21,39 @@ const ALL_LINKS = [
         roles: ['Admin', 'Purchase']
     },
     {
+        to: '/purchase-requests',
+        label: 'Purchase Requests',
+        icon: '📝',
+        roles: ['Admin', 'Purchase']
+    },
+    {
+        to: '/purchase-orders',
+        label: 'Purchase Orders',
+        icon: '📦',
+        roles: ['Admin', 'Purchase']
+    },
+    {
+        to: '/goods-receipts',
+        label: 'Goods Receipts',
+        icon: '📥',
+        roles: ['Admin', 'Purchase']
+    },
+    {
+        to: '/suppliers',
+        label: 'Suppliers',
+        icon: '🏷️',
+        roles: ['Admin', 'Purchase']
+    },
+    {
         to: '/hr',
         label: 'Human Resources',
         icon: '👥',
+        roles: ['Admin', 'HR']
+    },
+    {
+        to: '/departments',
+        label: 'Departments',
+        icon: '🏢',
         roles: ['Admin', 'HR']
     },
     {
@@ -50,6 +80,24 @@ const ALL_LINKS = [
         icon: '📦',
         roles: ['Admin']
     },
+    {
+        to: '/users',
+        label: 'Users',
+        icon: '👤',
+        roles: ['Admin']
+    },
+    {
+        to: '/canvassings',
+        label: 'Canvassings',
+        icon: '🔎',
+        roles: ['Admin', 'Purchase']
+    },
+    {
+        to: '/invoices',
+        label: 'Invoices',
+        icon: '🧾',
+        roles: ['Admin', 'Accounting', 'Purchase']
+    }
 ];
 
 export default function Sidebar({ onLogout, userRole }) {

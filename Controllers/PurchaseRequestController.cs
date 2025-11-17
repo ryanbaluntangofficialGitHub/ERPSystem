@@ -6,6 +6,9 @@ using ERPSystem.Models;
 using System.Security.Claims;
 using ERPSystem.DTOs;
 using ERPSystem.Services;
+using System.Text.Json;
+using System.IO;
+using Microsoft.AspNetCore.Http;
 
 namespace ERPSystem.Controllers
 {
@@ -17,12 +20,14 @@ namespace ERPSystem.Controllers
         private readonly AppDbContext _db;
         private readonly ILogger<PurchaseRequestController> _logger;
         private readonly PurchasingService _purchasingService;
+        private readonly CodeGenerator _codeGenerator;
 
-        public PurchaseRequestController(AppDbContext db, ILogger<PurchaseRequestController> logger, PurchasingService purchasingService)
+        public PurchaseRequestController(AppDbContext db, ILogger<PurchaseRequestController> logger, PurchasingService purchasingService, CodeGenerator codeGenerator)
         {
             _db = db;
             _logger = logger;
             _purchasingService = purchasingService;
+            _codeGenerator = codeGenerator;
         }
 
         // GET: api/PurchaseRequest
@@ -83,6 +88,30 @@ namespace ERPSystem.Controllers
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] PurchaseRequestCreateDto model)
         {
+            // Inspect raw request body for debugging mis-shaped payloads (best-effort)
+            try
+            {
+                HttpContext.Request.EnableBuffering();
+                HttpContext.Request.Body.Position = 0;
+                using var readerDbg = new StreamReader(HttpContext.Request.Body, leaveOpen: true);
+                var raw = await readerDbg.ReadToEndAsync();
+                HttpContext.Request.Body.Position = 0;
+                if (!string.IsNullOrWhiteSpace(raw))
+                {
+                    // quick check for common mistakes
+                    if (raw.Contains("\"id\"", StringComparison.OrdinalIgnoreCase) || raw.Contains("\"model\"", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Log a short snippet to help identify the client request payload
+                        var snippet = raw.Length > 1000 ? raw.Substring(0, 1000) + "..." : raw;
+                        _logger.LogWarning("Incoming POST {Path} contains unexpected top-level properties (id/model). Payload snippet: {Snippet}", HttpContext.Request.Path, snippet);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Failed to inspect request body for debugging");
+            }
+
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
@@ -93,11 +122,12 @@ namespace ERPSystem.Controllers
                 var request = new PurchaseRequest
                 {
                     CompanyId = model.CompanyId,
-                    RequestNumber = await GeneratePRNumber(),
+                    RequestNumber = await _codeGenerator.GeneratePrefixedDocumentNumberAsync("PR", 14),
                     RequestDate = DateTime.UtcNow,
                     DepartmentId = model.DepartmentId,
                     Priority = model.Priority,
                     RequiredDate = model.RequiredDate,
+                    Notes = model.Notes,
                     Status = "Draft",
                     RequestedBy = userId,
                     CreatedDate = DateTime.UtcNow,
@@ -343,12 +373,71 @@ namespace ERPSystem.Controllers
         {
             try
             {
+                // Inspect raw JSON to reject unexpected 'id' in body (should be passed in route)
+                try
+                {
+                    // Allow multiple reads of the request body
+                    HttpContext.Request.EnableBuffering();
+                    HttpContext.Request.Body.Position = 0;
+                    using var reader = new StreamReader(HttpContext.Request.Body, leaveOpen: true);
+                    var bodyText = await reader.ReadToEndAsync();
+                    HttpContext.Request.Body.Position = 0;
+
+                    if (!string.IsNullOrWhiteSpace(bodyText))
+                    {
+                        try
+                        {
+                            using var doc = JsonDocument.Parse(bodyText);
+                            var root = doc.RootElement;
+                            if (root.ValueKind == JsonValueKind.Object && (root.TryGetProperty("id", out _) || root.TryGetProperty("Id", out _)))
+                            {
+                                return BadRequest(new { message = "Do not include 'id' in request body; pass the id in the URL path instead." });
+                            }
+                        }
+                        catch (JsonException)
+                        {
+                            // ignore parse errors here - model binding will report invalid JSON
+                        }
+                    }
+                }
+                catch
+                {
+                    // best-effort only; don't block the request if inspection fails
+                }
+
+                if (model == null)
+                    return BadRequest(new { message = "Request body is required" });
+
+                // Load PR
                 var pr = await _db.PurchaseRequests
                     .Include(p => p.Items)
                     .FirstOrDefaultAsync(p => p.Id == id);
 
                 if (pr == null) return NotFound(new { message = "Purchase request not found" });
                 if (pr.Status != "Approved") return BadRequest(new { message = "Purchase request must be approved before converting" });
+
+                // Validate supplier exists
+                var supplierExists = await _db.Suppliers.AnyAsync(s => s.Id == model.SupplierId);
+                if (!supplierExists)
+                    return BadRequest(new { message = "Selected supplier does not exist" });
+
+                // Validate items: must have at least one and products must exist
+                if (model.Items == null || !model.Items.Any())
+                    return BadRequest(new { message = "At least one item is required to create a PO" });
+
+                foreach (var it in model.Items)
+                {
+                    if (!it.ProductId.HasValue || it.ProductId.Value <= 0)
+                    {
+                        return BadRequest(new { message = "Each item must reference a valid productId" });
+                    }
+
+                    var productExists = await _db.Products.AnyAsync(p => p.Id == it.ProductId.Value);
+                    if (!productExists)
+                    {
+                        return BadRequest(new { message = $"Product with id {it.ProductId.Value} does not exist" });
+                    }
+                }
 
                 var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
 
@@ -396,52 +485,34 @@ namespace ERPSystem.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error converting purchase request {Id} to PO", id);
-                return StatusCode(500, new { message = "Internal server error" });
-            }
-        }
-
-        // Helper method to generate PR number
-        private async Task<string> GeneratePRNumber()
-        {
-            var year = DateTime.UtcNow.Year;
-            var month = DateTime.UtcNow.Month;
-            var prefix = $"PR{year}{month:D2}";
-
-            var lastPR = await _db.PurchaseRequests
-                .Where(pr => pr.RequestNumber.StartsWith(prefix))
-                .OrderByDescending(pr => pr.RequestNumber)
-                .FirstOrDefaultAsync();
-
-            int nextNumber = 1;
-            if (lastPR != null)
-            {
-                var lastNumber = lastPR.RequestNumber.Substring(prefix.Length);
-                if (int.TryParse(lastNumber, out int num))
+                // If there's a database update exception, include inner exception details for diagnostics
+                if (ex is Microsoft.EntityFrameworkCore.DbUpdateException dbEx && dbEx.InnerException != null)
                 {
-                    nextNumber = num + 1;
+                    _logger.LogError(dbEx.InnerException, "Inner exception during DB update");
+                    return StatusCode(500, new { message = dbEx.InnerException.Message });
                 }
+
+                return StatusCode(500, new { message = ex.Message });
             }
-
-            return $"{prefix}{nextNumber:D4}";
         }
-    }
 
-    public class ApprovalRequest
-    {
-        public string? Reason { get; set; }
-        public string? Notes { get; set; }
-    }
+        public class ApprovalRequest
+        {
+            public string? Reason { get; set; }
+            public string? Notes { get; set; }
+        }
 
-    public class ConvertPRToPODto
-    {
-        public int SupplierId { get; set; }
-        public List<ConvertPRToPOItemDto> Items { get; set; } = new();
-    }
+        public class ConvertPRToPODto
+        {
+            public int SupplierId { get; set; }
+            public List<ConvertPRToPOItemDto> Items { get; set; } = new();
+        }
 
-    public class ConvertPRToPOItemDto
-    {
-        public int? ProductId { get; set; }
-        public int Quantity { get; set; }
-        public decimal UnitPrice { get; set; }
+        public class ConvertPRToPOItemDto
+        {
+            public int? ProductId { get; set; }
+            public int Quantity { get; set; }
+            public decimal UnitPrice { get; set; }
+        }
     }
 }

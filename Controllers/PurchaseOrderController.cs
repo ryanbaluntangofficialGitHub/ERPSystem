@@ -97,7 +97,7 @@ namespace ERPSystem.Controllers
                 var order = new PurchaseOrder
                 {
                     CompanyId = model.CompanyId,
-                    PONumber = await GeneratePONumber(),
+                    PONumber = await _purchasingService.GeneratePONumberAsync(),
                     PurchaseRequestId = model.PurchaseRequestId,
                     CanvassingId = model.CanvassingId,
                     SupplierId = model.SupplierId,
@@ -130,6 +130,9 @@ namespace ERPSystem.Controllers
 
                 _logger.LogInformation("Purchase order {PONumber} created by user {UserId}",
                     order.PONumber, userId);
+
+                // Audit
+                await _purchasingService.AuditAsync(userId, "Create", "PurchaseOrder", order.Id, $"PO {order.PONumber} created");
 
                 return CreatedAtAction(nameof(GetById), new { id = order.Id }, order);
             }
@@ -193,6 +196,9 @@ namespace ERPSystem.Controllers
 
                 _logger.LogInformation("Purchase order {Id} updated by user {UserId}", id, userId);
 
+                // Audit
+                await _purchasingService.AuditAsync(userId, "Update", "PurchaseOrder", id, $"PO {existingOrder.PONumber} updated");
+
                 return NoContent();
             }
             catch (Exception ex)
@@ -228,6 +234,9 @@ namespace ERPSystem.Controllers
 
                 _logger.LogInformation("Purchase order {Id} approved by user {UserId}", id, userId);
 
+                // Audit
+                await _purchasingService.AuditAsync(userId, "Approve", "PurchaseOrder", id, $"PO {order.PONumber} approved");
+
                 return Ok(new { message = "Purchase order approved" });
             }
             catch (Exception ex)
@@ -262,6 +271,9 @@ namespace ERPSystem.Controllers
 
                 // Delegate sending to PurchasingService which handles email and EmailLog creation
                 await _purchasingService.SendPurchaseOrderAsync(order.Id, userId);
+
+                // Audit
+                await _purchasingService.AuditAsync(userId, "Send", "PurchaseOrder", id, $"PO {order.PONumber} sent to supplier");
 
                 return Ok(new { message = "Purchase order sent to supplier" });
             }
@@ -307,6 +319,9 @@ namespace ERPSystem.Controllers
 
                 _logger.LogInformation("Purchase order {Id} confirmed by supplier", id);
 
+                // Audit
+                await _purchasingService.AuditAsync(userId, "Confirm", "PurchaseOrder", id, $"PO {order.PONumber} confirmed by supplier");
+
                 return Ok(new { message = "Purchase order confirmed" });
             }
             catch (Exception ex)
@@ -340,6 +355,10 @@ namespace ERPSystem.Controllers
                 await _db.SaveChangesAsync();
 
                 _logger.LogInformation("Purchase order {Id} deleted", id);
+
+                // Audit
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+                await _purchasingService.AuditAsync(userId, "Delete", "PurchaseOrder", id, $"PO {order.PONumber} deleted");
 
                 return NoContent();
             }

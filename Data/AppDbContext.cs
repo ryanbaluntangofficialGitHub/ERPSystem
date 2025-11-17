@@ -38,8 +38,14 @@ namespace ERPSystem.Data
         // Accounting Module
         public DbSet<Expense> Expenses { get; set; }
 
+        // Invoices
+        public DbSet<Invoice> Invoices { get; set; }
+        public DbSet<InvoiceItem> InvoiceItems { get; set; }
+
         // System
         public DbSet<EmailLog> EmailLogs { get; set; }
+        public DbSet<AuditLog> AuditLogs { get; set; }
+        public DbSet<DocumentNumberReservation> DocumentNumberReservations { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -68,11 +74,25 @@ namespace ERPSystem.Data
                 .HasForeignKey(poi => poi.PurchaseOrderId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            // Invoice -> Invoice Items
+            modelBuilder.Entity<Invoice>()
+                .HasMany(i => i.Items)
+                .WithOne(ii => ii.Invoice)
+                .HasForeignKey(ii => ii.InvoiceId)
+                .OnDelete(DeleteBehavior.Cascade);
+
             // Purchase Order -> Goods Receipts (NO CASCADE - prevent cycle)
             modelBuilder.Entity<PurchaseOrder>()
                 .HasMany(po => po.GoodsReceipts)
                 .WithOne(gr => gr.PurchaseOrder)
                 .HasForeignKey(gr => gr.PurchaseOrderId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Configure Invoice -> PurchaseOrder (optional one-to-many)
+            modelBuilder.Entity<Invoice>()
+                .HasOne(i => i.PurchaseOrder)
+                .WithMany()
+                .HasForeignKey(i => i.PurchaseOrderId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             // Goods Receipt -> Goods Receipt Items

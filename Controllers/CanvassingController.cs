@@ -5,6 +5,7 @@ using ERPSystem.Data;
 using ERPSystem.Models;
 using System.Security.Claims;
 using ERPSystem.Services;
+using Microsoft.AspNetCore.Hosting;
 
 namespace ERPSystem.Controllers
 {
@@ -77,11 +78,59 @@ namespace ERPSystem.Controllers
             }
         }
 
+        private bool ValidateCanvassingModel(Canvassing canvassing)
+        {
+            // Clear any existing model state errors for items
+            // Validate top-level required fields
+            if (canvassing == null)
+            {
+                ModelState.AddModelError(string.Empty, "Payload is required");
+                return false;
+            }
+
+            if (canvassing.Items == null || !canvassing.Items.Any())
+            {
+                ModelState.AddModelError("Items", "At least one canvassing item is required");
+            }
+            else
+            {
+                for (int i = 0; i < canvassing.Items.Count; i++)
+                {
+                    var it = canvassing.Items.ElementAt(i);
+                    if (it == null)
+                    {
+                        ModelState.AddModelError($"Items[{i}]", "Item is required");
+                        continue;
+                    }
+
+                    if (it.SupplierId <= 0)
+                        ModelState.AddModelError($"Items[{i}].SupplierId", "Supplier is required and must be a positive id");
+
+                    if (it.Quantity <= 0)
+                        ModelState.AddModelError($"Items[{i}].Quantity", "Quantity must be greater than zero");
+
+                    if (it.UnitPrice < 0)
+                        ModelState.AddModelError($"Items[{i}].UnitPrice", "Unit price must be zero or greater");
+
+                    // Allow small rounding differences, but check consistency
+                    var expectedTotal = it.Quantity * it.UnitPrice;
+                    if (Math.Round(it.TotalPrice - expectedTotal, 2) != 0)
+                        ModelState.AddModelError($"Items[{i}].TotalPrice", "TotalPrice must equal Quantity * UnitPrice");
+                }
+            }
+
+            return ModelState.ErrorCount == 0;
+        }
+
         // POST: api/Canvassing
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] Canvassing canvassing)
         {
             if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            // Validate items and business rules
+            if (!ValidateCanvassingModel(canvassing))
                 return BadRequest(ModelState);
 
             try
@@ -94,13 +143,25 @@ namespace ERPSystem.Controllers
                 canvassing.Status = "InProgress";
                 canvassing.CreatedDate = DateTime.UtcNow;
                 canvassing.CreatedBy = userId;
-                canvassing.CompanyId = 1; // TODO: Get from user context
+                canvassing.CompanyId = canvassing.CompanyId > 0 ? canvassing.CompanyId : 1; // TODO: Get from user context
+
+                // Ensure items reference is preserved and set foreign key
+                if (canvassing.Items != null)
+                {
+                    foreach (var it in canvassing.Items)
+                    {
+                        it.CanvassingId = canvassing.Id; // will be set after save
+                    }
+                }
 
                 _db.Canvassings.Add(canvassing);
                 await _db.SaveChangesAsync();
 
                 _logger.LogInformation("Canvassing {CanvassingNumber} created by user {UserId}",
                     canvassing.CanvassingNumber, userId);
+
+                // Audit
+                await _purchasingService.AuditAsync(userId, "Create", "Canvassing", canvassing.Id, $"Canvassing {canvassing.CanvassingNumber} created");
 
                 return CreatedAtAction(nameof(GetById), new { id = canvassing.Id }, canvassing);
             }
@@ -141,6 +202,10 @@ namespace ERPSystem.Controllers
                 _logger.LogInformation("Supplier {SupplierId} selected for canvassing {Id}",
                     request.SupplierId, id);
 
+                // Audit
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+                await _purchasingService.AuditAsync(userId, "SelectSupplier", "Canvassing", id, $"Supplier {request.SupplierId} selected");
+
                 return Ok(new { message = "Supplier selected successfully" });
             }
             catch (Exception ex)
@@ -160,6 +225,9 @@ namespace ERPSystem.Controllers
 
                 var po = await _purchasingService.ConvertCanvassingToPOAsync(id, userId);
 
+                // Audit
+                await _purchasingService.AuditAsync(userId, "ConvertToPO", "Canvassing", id, $"Converted canvassing {id} to PO {po.PONumber}");
+
                 return Ok(new { message = "Purchase order created", poId = po.Id, poNumber = po.PONumber });
             }
             catch (InvalidOperationException ex)
@@ -170,6 +238,77 @@ namespace ERPSystem.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error converting canvassing {Id} to PO", id);
+                return StatusCode(500, new { message = "Internal server error" });
+            }
+        }
+
+        // PUT: api/Canvassing/5
+        [HttpPut("{id}")]
+        public async Task<IActionResult> Update(int id, [FromBody] Canvassing model)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            // Validate items and business rules
+            if (!ValidateCanvassingModel(model))
+                return BadRequest(ModelState);
+
+            try
+            {
+                var existing = await _db.Canvassings
+                    .Include(c => c.Items)
+                    .FirstOrDefaultAsync(c => c.Id == id);
+
+                if (existing == null)
+                    return NotFound(new { message = "Canvassing not found" });
+
+                if (existing.Status != "InProgress")
+                    return BadRequest(new { message = "Canvassing cannot be edited in current status" });
+
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+
+                // Update head
+                existing.PurchaseRequestId = model.PurchaseRequestId;
+                existing.CanvassingDate = model.CanvassingDate != default ? model.CanvassingDate : existing.CanvassingDate;
+                existing.Notes = model.Notes;
+                existing.ModifiedDate = DateTime.UtcNow;
+                existing.ModifiedBy = userId;
+
+                // Replace items
+                _db.CanvassingItems.RemoveRange(existing.Items);
+                existing.Items = new List<CanvassingItem>();
+
+                if (model.Items != null)
+                {
+                    foreach (var it in model.Items)
+                    {
+                        existing.Items.Add(new CanvassingItem
+                        {
+                            SupplierId = it.SupplierId,
+                            ProductId = it.ProductId,
+                            Quantity = it.Quantity,
+                            UnitPrice = it.UnitPrice,
+                            TotalPrice = it.TotalPrice,
+                            DeliveryDays = it.DeliveryDays,
+                            PaymentTerms = it.PaymentTerms,
+                            Notes = it.Notes,
+                            IsSelected = it.IsSelected
+                        });
+                    }
+                }
+
+                await _db.SaveChangesAsync();
+
+                _logger.LogInformation("Canvassing {Id} updated by user {UserId}", id, userId);
+
+                // Audit
+                await _purchasingService.AuditAsync(userId, "Update", "Canvassing", id, $"Canvassing {existing.CanvassingNumber} updated");
+
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating canvassing {Id}", id);
                 return StatusCode(500, new { message = "Internal server error" });
             }
         }

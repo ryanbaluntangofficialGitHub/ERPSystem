@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ERPSystem.Models
 {
@@ -37,6 +38,12 @@ namespace ERPSystem.Models
         public bool IsActive { get; set; } = true;
 
         public DateTime CreatedDate { get; set; }
+
+        public int CreatedBy { get; set; }
+
+        public DateTime? ModifiedDate { get; set; }
+
+        public int? ModifiedBy { get; set; }
 
         // Navigation properties
         public virtual Employee? Manager { get; set; }
