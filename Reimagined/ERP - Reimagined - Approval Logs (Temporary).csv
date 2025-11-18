@@ -1,0 +1,18 @@
+,,,,,,
+,Table Name: approval_log,,,,,
+,Column Name,Data Type,Length,Nullable,Remarks,Sample Data:
+PK,id,int,,no,identity,1
+,document_type,"enum(PR,PO,INV,GR,SO,DR,SI)",,no,"PR : Purchase Request
+PO : Purchase Order
+INV: Supplier Invoice
+GR: Goods Receipt
+SO: Sales Order
+DR: Delivery Receipt
+SI : Sales Invoice",PR
+,document_id,int,,no,Do not make as FK since this is dynamic,1
+,control_no,char,15,no,,PR25-0000000001
+,action,"enum(approved, dissapproved, returned)",,no,depending on action taken,Disapproved
+,new_status,"enum(New, Endorsed, Approved, Fulfilled, Cancelled, Dissapproved)",,,,
+,executed_by,int,,no,user id,1
+,executed_at,timestampz,,no,when action is taken (date and time),11/19/2025
+,remarks,varchar,500,yes,additional remarks,

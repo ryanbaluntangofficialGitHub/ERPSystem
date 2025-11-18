@@ -1,0 +1,15 @@
+,Table Name: user,,,,,,,
+,Column Name,Data Type,Length,Nullable,Remarks,Sample Data,,
+PK,id,int,,no,identity,1,2,3
+,user_id,char,15,no,open entry,ronelsf07,ryan3948,rendolf8857
+,first_name,varchar,25,no,open entry,Ronel,Ryan,Rendolf
+,middle_name,varchar,25,yes,open entry,Eballes,Eballes,Eballes
+,last_name,varchar,25,no,open entry,Baluntang,Baluntang,Baluntang
+,email,varchar,50,no,open entry but validate email format,baluntang.ronel@gmail.com,baluntang.ryanl@gmail.com,baluntang.rendolf@gmail.com
+FK,cost_center,int,,no,FK: costcenter.id,1,1,1
+,position,varchar,50,yes,open entry,Department Manager,Section Manager,Section Manager
+,status,char,1,no,"default: (A)Active ; (C) Cancelled, (H) Hold",Active,Active,Active
+FK,created_by,INT,,no,FK: user.id,,1,1
+FK,updated_by,INT,,no,FK: user.id,,1,1
+,created_at,datetime,,no,date and time,11/19/2025,11/19/2025,11/19/2025
+,updated_at,datetime,,no,date and time,11/19/2025,11/19/2025,11/19/2025

@@ -1,0 +1,20 @@
+,Table Name: user,,,,,,
+,Column Name,Data Type,Length,Nullable,Remarks,Sample Data,Notes
+PK,id,int,,no,Internal system ID,1,
+,code,varchar,100,no,Unique item code (SKU);  should be validated uniqueness on all active materials upon saving ,M00001,
+,name,varchar,200,no,Short description,Stainless Steel,
+,description,varchar,500,no,Long description,"SUS304 1x20x 200 mm, Laminated",
+,type,"ENUM(raw, packaging, finished_goods, semi_finished, service, asset, consumable, trading)",,no,Classification,raw,
+,category,varchar,100,no,"Category grouping; Default Value: ""Default""",Default,
+FK,base_uom_id,int,,no,Base unit of measure,1,mt
+FK,inventory_uom_id,int,,no,UOM used in stock (may differ),2,kg
+,conversion_factor,DECIMAL,,no,"For UOM conversion; if base uom is equal to inventory uom, then value is 1",1000,conversion from MT to KG
+,is_batch_managed,BOOLEAN,,no,Batch/lot tracking; default: false,FALSE,
+,is_serial_managed,BOOLEAN,,no,Serial tracking: default: false,FALSE,
+,shelf_life_days,INT,,yes,Expiry control,100,
+,expiry_date,date,,yes,Specific Expiration date,null,
+,status,"enum(Active, Cancelled, Hold)",,no,default: Active,Active,
+FK,created_by,INT,,no,FK: user.id,1,
+FK,updated_by,INT,,no,FK: user.id,1,
+,created_at,timestamptz,,no,date and time,11/19/2025,
+,updated_at,timestamptz,,no,date and time,11/19/2025,

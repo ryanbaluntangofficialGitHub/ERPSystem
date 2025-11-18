@@ -1,0 +1,9 @@
+,,Components
+,Login Screen,Input User Name and Password
+,,Has Logo
+,,Show/Hide password
+,Dashboard,Has Menu Bar
+,,Menu Bar is role based driven based on logged in account
+,,Has Analytics view as default main view
+,,Logout function
+,,Change Password function
