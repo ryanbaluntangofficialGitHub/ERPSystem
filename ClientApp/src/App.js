@@ -91,6 +91,7 @@ function RequireAuth({ children, allowedRoles }) {
 function App() {
     const [token, setToken] = useState(localStorage.getItem('erp_token'));
     const [role, setRole] = useState(null);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
     const navigate = useNavigate();
 
     const handleLogin = (jwt) => {
@@ -167,10 +168,18 @@ function App() {
     return (
         <ToastProvider>
             <div className="min-h-screen flex bg-gray-50">
-                <Sidebar onLogout={handleLogout} userRole={role} />
-                <div className="flex-1 flex flex-col">
-                    <Header onLogout={handleLogout} />
-                    <main className="flex-1 p-6 overflow-auto">
+                <Sidebar
+                    onLogout={handleLogout}
+                    userRole={role}
+                    isOpen={sidebarOpen}
+                    onToggle={() => setSidebarOpen(!sidebarOpen)}
+                />
+                <div className="flex-1 flex flex-col lg:ml-0">
+                    <Header
+                        onLogout={handleLogout}
+                        onMenuClick={() => setSidebarOpen(!sidebarOpen)}
+                    />
+                    <main className="flex-1 p-4 sm:p-6 overflow-auto">
                         <Routes>
                             <Route
                                 path="/"

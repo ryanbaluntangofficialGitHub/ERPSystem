@@ -117,102 +117,262 @@ export default function Dashboard() {
     const maxTrendCount = Math.max(...(salesTrend.map(x => x.count) || [0]), 1);
 
     return (
-        <div>
-            <div className="grid grid-cols-4 gap-4 mb-6">
-                <div className="bg-white p-4 rounded shadow">
-                    <div className="text-sm text-gray-500">Products</div>
-                    <div className="text-2xl font-bold">{productsTotal}</div>
-                    <div className="text-sm text-green-600">Active: {productsActive}</div>
-                </div>
-                <div className="bg-white p-4 rounded shadow">
-                    <div className="text-sm text-gray-500">Warehouses</div>
-                    <div className="text-2xl font-bold">{warehousesTotal}</div>
-                    <div className="text-sm text-green-600">Active: {warehousesActive}</div>
-                </div>
-                <div className="bg-white p-4 rounded shadow">
-                    <div className="text-sm text-gray-500">Purchase Requests</div>
-                    <div className="text-2xl font-bold">{prsPending}</div>
-                    <div className="text-sm text-gray-500">Pending Approval</div>
-                </div>
-                <div className="bg-white p-4 rounded shadow">
-                    <div className="text-sm text-gray-500">Purchase Orders</div>
-                    <div className="text-2xl font-bold">{poDraft}</div>
-                    <div className="text-sm text-gray-500">Draft / Approved: {poApproved}</div>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-                <div className="col-span-2 bg-white p-4 rounded shadow">
-                    <h3 className="font-semibold mb-2">Sales Trend (Last 6 months)</h3>
-                    <div className="flex items-end gap-2 h-40">
-                        {salesTrend.map(t => (
-                            <div key={t.month} className="flex-1 flex flex-col items-center">
-                                <div className="bg-indigo-500 w-full rounded-t" style={{ height: `${Math.max(4, (t.count / maxTrendCount) * 100)}%` }} />
-                                <div className="text-xs mt-2">{t.month}</div>
-                            </div>
-                        ))}
+        <div className="space-y-8">
+            {/* Dashboard Header */}
+            <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-6 rounded-xl shadow-lg">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h1 className="text-3xl font-bold mb-2">Dashboard Overview</h1>
+                        <p className="text-blue-100">Welcome back! Here's your business at a glance.</p>
                     </div>
-                </div>
-
-                <div className="bg-white p-4 rounded shadow">
-                    <h3 className="font-semibold mb-2">PO Status</h3>
-                    <ul className="text-sm">
-                        {poStatusCounts.map(s => (
-                            <li key={s.status} className="flex justify-between py-1 border-b">
-                                <span>{s.status}</span>
-                                <span className="font-medium">{s.count}</span>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 mt-4">
-                <div className="bg-white p-4 rounded shadow">
-                    <h3 className="font-semibold mb-2">Recent Audit Logs</h3>
-                    <div className="overflow-auto max-h-64">
-                        <table className="min-w-full text-left text-sm">
-                            <thead className="text-gray-500 text-xs uppercase">
-                                <tr>
-                                    <th className="px-2 py-1">Time</th>
-                                    <th className="px-2 py-1">User</th>
-                                    <th className="px-2 py-1">Action</th>
-                                    <th className="px-2 py-1">Entity</th>
-                                    <th className="px-2 py-1">Details</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {recentAudit.map(a => (
-                                    <tr key={a.Id || a.id} className="border-t">
-                                        <td className="px-2 py-1">{new Date(a.CreatedDate || a.createdDate).toLocaleString()}</td>
-                                        <td className="px-2 py-1">{a.UserId || a.userId}</td>
-                                        <td className="px-2 py-1">{a.Action || a.action}</td>
-                                        <td className="px-2 py-1">{(a.Entity || a.entity)}#{a.EntityId || a.entityId}</td>
-                                        <td className="px-2 py-1">{a.Details || a.details}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div className="bg-white p-4 rounded shadow">
-                    <h3 className="font-semibold mb-2">Quick Charts</h3>
-                    <div className="text-sm text-gray-500 mb-2">(Simple charts shown as bars)</div>
-                    <div className="grid grid-cols-1 gap-2">
-                        <div className="w-full bg-gray-100 rounded p-2">
-                            <div className="text-xs text-gray-600">Products Active / Total</div>
-                            <div className="relative h-6 bg-white rounded mt-2">
-                                <div style={{ width: `${(productsActive / Math.max(1, productsTotal)) * 100}%` }} className="absolute left-0 top-0 h-full bg-green-500 rounded"></div>
-                                <div className="absolute left-2 top-0 text-xs text-gray-800">{productsActive} / {productsTotal}</div>
-                            </div>
+                    <div className="hidden md:flex items-center space-x-4">
+                        <div className="text-center">
+                            <div className="text-2xl font-bold">{new Date().toLocaleDateString()}</div>
+                            <div className="text-sm text-blue-200">Today</div>
                         </div>
-                        <div className="w-full bg-gray-100 rounded p-2">
-                            <div className="text-xs text-gray-600">Warehouses Active / Total</div>
-                            <div className="relative h-6 bg-white rounded mt-2">
-                                <div style={{ width: `${(warehousesActive / Math.max(1, warehousesTotal)) * 100}%` }} className="absolute left-0 top-0 h-full bg-blue-500 rounded"></div>
-                                <div className="absolute left-2 top-0 text-xs text-gray-800">{warehousesActive} / {warehousesTotal}</div>
+                        <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                            <span className="text-3xl">📊</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Quick Stats Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 border-l-4 border-green-500">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <div className="text-sm font-medium text-gray-500 mb-1">Products</div>
+                            <div className="text-3xl font-bold text-gray-900">{productsTotal}</div>
+                            <div className="text-sm text-green-600 font-medium">Active: {productsActive}</div>
+                        </div>
+                        <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                            <span className="text-2xl">📦</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 border-l-4 border-blue-500">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <div className="text-sm font-medium text-gray-500 mb-1">Warehouses</div>
+                            <div className="text-3xl font-bold text-gray-900">{warehousesTotal}</div>
+                            <div className="text-sm text-blue-600 font-medium">Active: {warehousesActive}</div>
+                        </div>
+                        <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                            <span className="text-2xl">🏭</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 border-l-4 border-yellow-500">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <div className="text-sm font-medium text-gray-500 mb-1">Purchase Requests</div>
+                            <div className="text-3xl font-bold text-gray-900">{prsPending}</div>
+                            <div className="text-sm text-yellow-600 font-medium">Pending Approval</div>
+                        </div>
+                        <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
+                            <span className="text-2xl">📝</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 border-l-4 border-purple-500">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <div className="text-sm font-medium text-gray-500 mb-1">Purchase Orders</div>
+                            <div className="text-3xl font-bold text-gray-900">{poDraft}</div>
+                            <div className="text-sm text-purple-600 font-medium">Draft / Approved: {poApproved}</div>
+                        </div>
+                        <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                            <span className="text-2xl">🛒</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Analytics & Charts Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-md">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold text-gray-800 flex items-center">
+                            <span className="text-2xl mr-2">📈</span>
+                            Sales Trend (Last 6 months)
+                        </h3>
+                        <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                            View Details →
+                        </button>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <div className="flex items-end gap-3 h-48 min-w-max">
+                            {salesTrend.map(t => (
+                                <div key={t.month} className="flex-1 flex flex-col items-center min-w-16 group">
+                                    <div
+                                        className="bg-gradient-to-t from-indigo-500 to-indigo-400 w-full rounded-t-lg shadow-sm group-hover:from-indigo-600 group-hover:to-indigo-500 transition-colors duration-200"
+                                        style={{ height: `${Math.max(8, (t.count / maxTrendCount) * 100)}%` }}
+                                        title={`${t.month}: ${t.count} sales`}
+                                    />
+                                    <div className="text-xs mt-3 font-medium text-gray-600">{t.month}</div>
+                                    <div className="text-xs text-gray-500">{t.count}</div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-xl shadow-md">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold text-gray-800 flex items-center">
+                            <span className="text-2xl mr-2">📋</span>
+                            Purchase Order Status
+                        </h3>
+                        <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                            View All →
+                        </button>
+                    </div>
+                    <div className="space-y-3">
+                        {poStatusCounts.map(s => (
+                            <div key={s.status} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                                <div className="flex items-center">
+                                    <div className={`w-3 h-3 rounded-full mr-3 ${
+                                        s.status === 'Draft' ? 'bg-yellow-400' :
+                                        s.status === 'Approved' ? 'bg-green-400' :
+                                        s.status === 'Pending' ? 'bg-blue-400' :
+                                        'bg-gray-400'
+                                    }`}></div>
+                                    <span className="font-medium text-gray-700">{s.status}</span>
+                                </div>
+                                <span className="text-lg font-bold text-gray-900">{s.count}</span>
                             </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="bg-white p-6 rounded-xl shadow-md">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                    <span className="text-2xl mr-2">⚡</span>
+                    Quick Actions
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <button className="flex flex-col items-center p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors group">
+                        <span className="text-3xl mb-2 group-hover:scale-110 transition-transform">📦</span>
+                        <span className="text-sm font-medium text-blue-700">New Product</span>
+                    </button>
+                    <button className="flex flex-col items-center p-4 bg-green-50 hover:bg-green-100 rounded-lg transition-colors group">
+                        <span className="text-3xl mb-2 group-hover:scale-110 transition-transform">🛒</span>
+                        <span className="text-sm font-medium text-green-700">Purchase Request</span>
+                    </button>
+                    <button className="flex flex-col items-center p-4 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors group">
+                        <span className="text-3xl mb-2 group-hover:scale-110 transition-transform">👥</span>
+                        <span className="text-sm font-medium text-purple-700">Add Employee</span>
+                    </button>
+                    <button className="flex flex-col items-center p-4 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors group">
+                        <span className="text-3xl mb-2 group-hover:scale-110 transition-transform">📊</span>
+                        <span className="text-sm font-medium text-orange-700">View Reports</span>
+                    </button>
+                </div>
+            </div>
+
+            {/* Activity & Insights Section */}
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <div className="bg-white p-6 rounded-xl shadow-md">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold text-gray-800 flex items-center">
+                            <span className="text-2xl mr-2">📋</span>
+                            Recent Activity
+                        </h3>
+                        <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                            View All →
+                        </button>
+                    </div>
+                    <div className="space-y-3 max-h-80 overflow-y-auto">
+                        {recentAudit.length === 0 ? (
+                            <div className="text-center py-8 text-gray-500">
+                                <span className="text-4xl mb-2 block">📭</span>
+                                No recent activity
+                            </div>
+                        ) : (
+                            recentAudit.slice(0, 5).map(a => (
+                                <div key={a.Id || a.id} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                                    <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
+                                        (a.Action || a.action) === 'CREATE' ? 'bg-green-400' :
+                                        (a.Action || a.action) === 'UPDATE' ? 'bg-blue-400' :
+                                        (a.Action || a.action) === 'DELETE' ? 'bg-red-400' :
+                                        'bg-gray-400'
+                                    }`}></div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="text-sm font-medium text-gray-900 truncate">
+                                            {(a.Entity || a.entity)} #{a.EntityId || a.entityId}
+                                        </div>
+                                        <div className="text-xs text-gray-600">
+                                            {a.Action || a.action} by {a.UserId || a.userId}
+                                        </div>
+                                        <div className="text-xs text-gray-500">
+                                            {new Date(a.CreatedDate || a.createdDate).toLocaleString()}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-xl shadow-md">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold text-gray-800 flex items-center">
+                            <span className="text-2xl mr-2">📊</span>
+                            Key Metrics
+                        </h3>
+                        <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                            View Details →
+                        </button>
+                    </div>
+                    <div className="space-y-4">
+                        <div className="bg-gradient-to-r from-green-50 to-green-100 p-4 rounded-lg border border-green-200">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-medium text-green-800">Product Utilization</span>
+                                <span className="text-lg font-bold text-green-700">{Math.round((productsActive / Math.max(1, productsTotal)) * 100)}%</span>
+                            </div>
+                            <div className="w-full bg-green-200 rounded-full h-2">
+                                <div
+                                    className="bg-green-500 h-2 rounded-full transition-all duration-500"
+                                    style={{ width: `${(productsActive / Math.max(1, productsTotal)) * 100}%` }}
+                                ></div>
+                            </div>
+                            <div className="text-xs text-green-600 mt-1">{productsActive} of {productsTotal} products active</div>
+                        </div>
+
+                        <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-lg border border-blue-200">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-medium text-blue-800">Warehouse Capacity</span>
+                                <span className="text-lg font-bold text-blue-700">{Math.round((warehousesActive / Math.max(1, warehousesTotal)) * 100)}%</span>
+                            </div>
+                            <div className="w-full bg-blue-200 rounded-full h-2">
+                                <div
+                                    className="bg-blue-500 h-2 rounded-full transition-all duration-500"
+                                    style={{ width: `${(warehousesActive / Math.max(1, warehousesTotal)) * 100}%` }}
+                                ></div>
+                            </div>
+                            <div className="text-xs text-blue-600 mt-1">{warehousesActive} of {warehousesTotal} warehouses active</div>
+                        </div>
+
+                        <div className="bg-gradient-to-r from-purple-50 to-purple-100 p-4 rounded-lg border border-purple-200">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-medium text-purple-800">Order Fulfillment</span>
+                                <span className="text-lg font-bold text-purple-700">
+                                    {poApproved > 0 ? Math.round((poApproved / (poDraft + poApproved)) * 100) : 0}%
+                                </span>
+                            </div>
+                            <div className="w-full bg-purple-200 rounded-full h-2">
+                                <div
+                                    className="bg-purple-500 h-2 rounded-full transition-all duration-500"
+                                    style={{ width: `${poApproved > 0 ? (poApproved / (poDraft + poApproved)) * 100 : 0}%` }}
+                                ></div>
+                            </div>
+                            <div className="text-xs text-purple-600 mt-1">{poApproved} approved of {poDraft + poApproved} total orders</div>
                         </div>
                     </div>
                 </div>
