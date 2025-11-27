@@ -123,6 +123,13 @@ namespace ERPSystem.Data
                 .HasForeignKey(e => e.DepartmentId)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            // Department -> Employee (Manager)
+            modelBuilder.Entity<Department>()
+                .HasOne(d => d.Manager)
+                .WithMany()
+                .HasForeignKey(d => d.ManagerId)
+                .OnDelete(DeleteBehavior.SetNull);
+
             // ===== DECIMAL PRECISION CONFIGURATIONS =====
 
             // Purchase Request Item
@@ -190,6 +197,18 @@ namespace ERPSystem.Data
             // Expense
             modelBuilder.Entity<Expense>()
                 .Property(p => p.Amount).HasPrecision(18, 2);
+
+            // Invoice
+            modelBuilder.Entity<Invoice>()
+                .Property(p => p.TotalAmount).HasPrecision(18, 2);
+
+            // Invoice Item
+            modelBuilder.Entity<InvoiceItem>()
+                .Property(p => p.LineTotal).HasPrecision(18, 2);
+            modelBuilder.Entity<InvoiceItem>()
+                .Property(p => p.Quantity).HasPrecision(18, 2);
+            modelBuilder.Entity<InvoiceItem>()
+                .Property(p => p.UnitPrice).HasPrecision(18, 2);
 
             // ===== UNIQUE CONSTRAINTS =====
 

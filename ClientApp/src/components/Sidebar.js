@@ -131,8 +131,9 @@ export default function Sidebar({ onLogout, userRole, isOpen, onToggle }) {
             {/* Sidebar */}
             <aside className={`
                 fixed lg:static inset-y-0 left-0 z-50
-                w-64 bg-white border-r min-h-screen shadow-lg
+                w-64 sm:w-72 bg-white border-r min-h-screen shadow-lg
                 transform transition-transform duration-300 ease-in-out
+                flex flex-col
                 ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
             `}>
                 <div className="p-4 border-b bg-gradient-to-r from-blue-600 to-blue-700 text-white">
@@ -167,14 +168,14 @@ export default function Sidebar({ onLogout, userRole, isOpen, onToggle }) {
                                         to={link.to}
                                         onClick={() => window.innerWidth < 1024 && onToggle()} // Close on mobile after navigation
                                         className={({ isActive }) =>
-                                            `flex items-center gap-3 p-3 rounded-lg transition-all duration-200 ${isActive
+                                            `flex items-center gap-3 p-3 rounded-lg transition-all duration-200 whitespace-nowrap overflow-hidden ${isActive
                                                 ? 'bg-blue-500 text-white shadow-md transform scale-105'
                                                 : 'text-gray-700 hover:bg-gray-100 hover:transform hover:scale-102'
                                             }`
                                         }
                                     >
-                                        <span className="text-xl">{link.icon}</span>
-                                        <span className="font-medium">{link.label}</span>
+                                        <span className="text-xl flex-shrink-0">{link.icon}</span>
+                                        <span className="font-medium truncate">{link.label}</span>
                                     </NavLink>
                                 </li>
                             ))
@@ -186,10 +187,10 @@ export default function Sidebar({ onLogout, userRole, isOpen, onToggle }) {
                                 onLogout();
                                 window.innerWidth < 1024 && onToggle(); // Close on mobile after logout
                             }}
-                            className="w-full flex items-center gap-3 p-3 rounded-lg text-red-600 hover:bg-red-50 transition-all duration-200 font-medium"
+                            className="w-full flex items-center gap-3 p-3 rounded-lg text-red-600 hover:bg-red-50 transition-all duration-200 font-medium whitespace-nowrap overflow-hidden"
                         >
-                            <span className="text-xl">🚪</span>
-                            <span>Logout</span>
+                            <span className="text-xl flex-shrink-0">🚪</span>
+                            <span className="truncate">Logout</span>
                         </button>
                     </div>
                 </nav>

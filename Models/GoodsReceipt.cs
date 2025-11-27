@@ -38,6 +38,8 @@ namespace ERPSystem.Models
 
         public DateTime CreatedDate { get; set; }
         public int CreatedBy { get; set; }
+        public DateTime? ModifiedDate { get; set; }
+        public int? ModifiedBy { get; set; }
 
         // Navigation properties
         public virtual PurchaseOrder PurchaseOrder { get; set; } = null!;
@@ -71,6 +73,11 @@ namespace ERPSystem.Models
 
         [StringLength(500)]
         public string? Notes { get; set; }
+
+        public DateTime CreatedDate { get; set; }
+        public int CreatedBy { get; set; }
+        public DateTime? ModifiedDate { get; set; }
+        public int? ModifiedBy { get; set; }
 
         // Navigation properties
         public virtual GoodsReceipt GoodsReceipt { get; set; } = null!;
